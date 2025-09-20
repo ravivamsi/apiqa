@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APIQA - Test Runs</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+        .main-content {
+            padding: 20px;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            transition: transform 0.2s;
+        }
+        .status-badge {
+            font-size: 0.8em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h4 class="text-primary">APIQA</h4>
+                        <small class="text-muted">API Quality Analysis</small>
+                    </div>
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" th:href="@{/}">
+                                <i class="bi bi-house-door"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:href="@{/specs}">
+                                <i class="bi bi-file-earmark-code"></i> API Specs
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" th:href="@{/test-runs}">
+                                <i class="bi bi-play-circle"></i> Test Runs
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <!-- Alerts -->
+                <div th:if="${param.success}" class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle"></i> <span th:text="${param.success[0]}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                
+                <div th:if="${param.error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i> <span th:text="${param.error[0]}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Test Runs</h1>
+                </div>
+                
+                <!-- Test Runs Table -->
+                <div class="card">
+                    <div class="card-body">
+                        <div th:if="${testRuns != null and !testRuns.isEmpty()}">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Run Name</th>
+                                            <th>API Spec</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Started At</th>
+                                            <th>Duration</th>
+                                            <th>Results</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr th:each="run : ${testRuns}">
+                                            <td>
+                                                <strong th:text="${run.runName}">Test Run</strong>
+                                            </td>
+                                            <td th:text="${run.apiSpec.name}">API Spec</td>
+                                            <td>
+                                                <span class="badge bg-secondary" th:text="${run.runType.name()}">MANUAL</span>
+                                            </td>
+                                            <td>
+                                                <span th:class="'badge ' + ${run.status.name() == 'COMPLETED' ? 'bg-success' : 
+                                                      run.status.name() == 'FAILED' ? 'bg-danger' : 
+                                                      run.status.name() == 'RUNNING' ? 'bg-warning' : 'bg-secondary'}"
+                                                      th:text="${run.status.name()}">PENDING</span>
+                                            </td>
+                                            <td th:text="${run.startedAt != null ? #temporals.format(run.startedAt, 'yyyy-MM-dd HH:mm') : 'N/A'}">2023-01-01 12:00</td>
+                                            <td th:text="${run.completedAt != null and run.startedAt != null ? 
+                                                          #temporals.format(run.completedAt, 'HH:mm:ss') + ' - ' + #temporals.format(run.startedAt, 'HH:mm:ss') : 'N/A'}">N/A</td>
+                                            <td>
+                                                <div th:if="${run.totalTests != null}">
+                                                    <span class="badge bg-success" th:text="${run.passedTests}">0</span>
+                                                    <span class="badge bg-danger" th:text="${run.failedTests}">0</span>
+                                                    <span class="badge bg-secondary" th:text="${run.skippedTests}">0</span>
+                                                    <span class="badge bg-info" th:text="${run.totalTests}">0</span>
+                                                </div>
+                                                <span th:if="${run.totalTests == null}" class="text-muted">-</span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a th:href="@{/test-runs/{id}(id=${run.id})}" class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-eye"></i> View
+                                                    </a>
+                                                    <button th:if="${run.status.name() == 'FAILED'}" type="button" class="btn btn-sm btn-outline-warning" 
+                                                            th:onclick="'retryTests(' + ${run.id} + ')'">
+                                                        <i class="bi bi-arrow-clockwise"></i> Retry
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div th:if="${testRuns == null or testRuns.isEmpty()}" class="text-center text-muted py-5">
+                            <i class="bi bi-play-circle fs-1"></i>
+                            <h4>No Test Runs</h4>
+                            <p>Run tests on your API specifications to see results here</p>
+                            <a th:href="@{/specs}" class="btn btn-primary">
+                                <i class="bi bi-file-earmark-code"></i> View API Specs
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        function retryTests(runId) {
+            if (confirm('Retry failed tests for this run?')) {
+                fetch('/test-runs/' + runId + '/retry', {
+                    method: 'POST'
+                }).then(response => {
+                    if (response.ok) {
+                        location.reload();
+                    } else {
+                        alert('Failed to retry tests');
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>

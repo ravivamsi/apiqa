@@ -1,0 +1,163 @@
+package com.apiqa.service;
+
+import com.apiqa.model.*;
+import com.apiqa.repository.ApiSpecRepository;
+import com.apiqa.repository.FeatureFileRepository;
+import com.apiqa.repository.TestRunRepository;
+import com.apiqa.repository.TestScenarioRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
+@Service
+@Transactional
+public class ApiQaService {
+    
+    @Autowired
+    private ApiSpecRepository apiSpecRepository;
+    
+    @Autowired
+    private TestRunRepository testRunRepository;
+    
+    @Autowired
+    private TestScenarioRepository testScenarioRepository;
+    
+    @Autowired
+    private FeatureFileRepository featureFileRepository;
+    
+    @Autowired
+    private OpenApiParserService parserService;
+    
+    @Autowired
+    private TestExecutionService testExecutionService;
+    
+    public ApiSpec uploadApiSpec(String name, String description, String openApiYaml, String version, String uploadedBy) {
+        ApiSpec apiSpec = new ApiSpec(name, description, openApiYaml, version, uploadedBy);
+        return apiSpecRepository.save(apiSpec);
+    }
+    
+    public List<FeatureFile> generateFeatureFiles(Long apiSpecId) {
+        Optional<ApiSpec> apiSpecOpt = apiSpecRepository.findById(apiSpecId);
+        if (apiSpecOpt.isEmpty()) {
+            throw new RuntimeException("API Spec not found with ID: " + apiSpecId);
+        }
+        
+        ApiSpec apiSpec = apiSpecOpt.get();
+        
+        // Delete existing feature files and their test scenarios
+        System.out.println("Deleting existing tests for API Spec ID: " + apiSpecId);
+        for (FeatureFile existingFeatureFile : apiSpec.getFeatureFiles()) {
+            // Delete test scenarios first (due to foreign key constraints)
+            for (TestScenario scenario : existingFeatureFile.getTestScenarios()) {
+                testScenarioRepository.delete(scenario);
+            }
+            // Delete the feature file
+            featureFileRepository.delete(existingFeatureFile);
+        }
+        
+        // Clear the feature files list
+        apiSpec.getFeatureFiles().clear();
+        apiSpecRepository.save(apiSpec);
+        
+        System.out.println("Existing tests deleted. Generating new tests...");
+        
+        // Generate new feature files
+        List<FeatureFile> featureFiles = parserService.parseOpenApiSpec(apiSpec.getOpenApiYaml(), apiSpec);
+        
+        // Save each feature file with its test scenarios
+        for (FeatureFile featureFile : featureFiles) {
+            // Save the feature file first to get an ID
+            apiSpec.getFeatureFiles().add(featureFile);
+            apiSpecRepository.save(apiSpec);
+            
+            // Now save test scenarios with the proper feature file reference
+            for (TestScenario scenario : featureFile.getTestScenarios()) {
+                scenario.setFeatureFile(featureFile);
+                testScenarioRepository.save(scenario);
+            }
+        }
+        
+        System.out.println("New tests generated successfully. Total feature files: " + featureFiles.size());
+        return featureFiles;
+    }
+    
+    public TestRun executeTestRun(Long apiSpecId, String runName, TestRunType runType) {
+        Optional<ApiSpec> apiSpecOpt = apiSpecRepository.findById(apiSpecId);
+        if (apiSpecOpt.isEmpty()) {
+            throw new RuntimeException("API Spec not found with ID: " + apiSpecId);
+        }
+        
+        ApiSpec apiSpec = apiSpecOpt.get();
+        
+        // Create and save test run first
+        TestRun testRun = new TestRun(runName, runType, apiSpec);
+        testRun = testRunRepository.save(testRun);
+        
+        // Generate test executions for all scenarios (don't save yet)
+        List<TestExecution> executions = new ArrayList<>();
+        for (FeatureFile featureFile : apiSpec.getFeatureFiles()) {
+            for (TestScenario scenario : featureFile.getTestScenarios()) {
+                TestExecution execution = new TestExecution(scenario, testRun);
+                executions.add(execution);
+            }
+        }
+        
+        // Add executions to test run (but don't save yet)
+        testRun.getTestExecutions().addAll(executions);
+        
+        // Execute tests synchronously - this will handle saving the executions
+        TestRun result = testExecutionService.executeTestRun(testRun, executions);
+        
+        return result;
+    }
+    
+    @Async
+    public CompletableFuture<TestRun> executeTestRunAsync(TestRun testRun) {
+        TestRun result = testExecutionService.executeTestRun(testRun);
+        return CompletableFuture.completedFuture(result);
+    }
+    
+    public TestRun retryFailedTests(Long testRunId) {
+        Optional<TestRun> testRunOpt = testRunRepository.findById(testRunId);
+        if (testRunOpt.isEmpty()) {
+            throw new RuntimeException("Test Run not found with ID: " + testRunId);
+        }
+        
+        return testExecutionService.retryFailedTests(testRunOpt.get());
+    }
+    
+    public List<ApiSpec> getAllApiSpecs() {
+        return apiSpecRepository.findAllOrderByUploadedAtDesc();
+    }
+    
+    public Optional<ApiSpec> getApiSpecById(Long id) {
+        return apiSpecRepository.findById(id);
+    }
+    
+    public List<TestRun> getTestRunsByApiSpecId(Long apiSpecId) {
+        return testRunRepository.findByApiSpecIdOrderByStartedAtDesc(apiSpecId);
+    }
+    
+    public List<TestRun> getAllTestRuns() {
+        return testRunRepository.findAll();
+    }
+    
+    public Optional<TestRun> getTestRunById(Long id) {
+        return testRunRepository.findById(id);
+    }
+    
+    public void deleteApiSpec(Long id) {
+        apiSpecRepository.deleteById(id);
+    }
+    
+    public void deleteTestRun(Long id) {
+        testRunRepository.deleteById(id);
+    }
+}
