@@ -134,7 +134,7 @@ public class ApiQaService {
     }
     
     public List<ApiSpec> getAllApiSpecs() {
-        return apiSpecRepository.findAllOrderByUploadedAtDesc();
+        return apiSpecRepository.findAllWithFeatureFilesOrderByUploadedAtDesc();
     }
     
     public Optional<ApiSpec> getApiSpecById(Long id) {

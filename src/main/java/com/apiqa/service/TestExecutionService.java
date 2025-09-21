@@ -60,16 +60,11 @@ public class TestExecutionService {
     
     // Execute Test Case
     public TestExecution executeTestCase(TestCase testCase, TestRun testRun) {
-        TestExecution execution = new TestExecution();
-        execution.setTestRun(testRun);
-        execution.setTestCase(testCase); // Set the test case reference
-        execution.setTestScenario(null); // For custom test cases
+        TestExecution execution = new TestExecution(testCase, testRun);
         execution.setRequestMethod(testCase.getHttpMethod());
         execution.setRequestUrl(testCase.getEndpoint());
         execution.setRequestBody(testCase.getRequestBody());
         execution.setRequestHeaders("Content-Type: application/json");
-        execution.setStatus(TestExecutionStatus.PENDING); // Set initial status
-        execution.setExecutedAt(LocalDateTime.now());
         
         long startTime = System.currentTimeMillis();
         
@@ -280,9 +275,13 @@ public class TestExecutionService {
     
     // Additional methods for compatibility with existing services
     public TestRun executeTestRun(TestRun testRun, List<TestExecution> executions) {
-        // This method is called by existing services - implement as needed
         testRun.setStatus(TestRunStatus.RUNNING);
         testRun = testRunRepository.save(testRun);
+        
+        // Execute each test execution
+        for (TestExecution execution : executions) {
+            executeTestScenario(execution);
+        }
         
         // Process executions
         boolean allPassed = executions.stream().allMatch(e -> e.getStatus() == TestExecutionStatus.PASSED);
@@ -292,14 +291,112 @@ public class TestExecutionService {
     }
     
     public TestRun executeTestRun(TestRun testRun) {
-        // This method is called by existing services - implement as needed
         testRun.setStatus(TestRunStatus.RUNNING);
         testRun = testRunRepository.save(testRun);
         
-        // For now, just mark as completed
-        testRun.setStatus(TestRunStatus.COMPLETED);
+        // Get all test executions for this test run
+        List<TestExecution> executions = testExecutionRepository.findByTestRunId(testRun.getId());
+        
+        // Execute each test execution
+        for (TestExecution execution : executions) {
+            executeTestScenario(execution);
+        }
+        
+        // Update test run status based on execution results
+        boolean allPassed = executions.stream().allMatch(e -> e.getStatus() == TestExecutionStatus.PASSED);
+        testRun.setStatus(allPassed ? TestRunStatus.COMPLETED : TestRunStatus.FAILED);
         testRun.setEndedAt(LocalDateTime.now());
         return testRunRepository.save(testRun);
+    }
+    
+    // Execute TestScenario-based test execution
+    private void executeTestScenario(TestExecution execution) {
+        if (execution.getTestScenario() == null) {
+            System.out.println("No test scenario found for execution: " + execution.getId());
+            return;
+        }
+        
+        TestScenario scenario = execution.getTestScenario();
+        execution.setRequestMethod(scenario.getHttpMethod());
+        execution.setRequestUrl(scenario.getEndpoint());
+        execution.setRequestBody(scenario.getRequestBody());
+        execution.setRequestHeaders("Content-Type: application/json");
+        
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            System.out.println("Executing test scenario: " + scenario.getScenarioName() + " with endpoint: " + scenario.getEndpoint());
+            
+            // Execute the HTTP request
+            ResponseEntity<String> response = executeHttpRequestForScenario(scenario);
+            
+            System.out.println("HTTP request completed. Status: " + response.getStatusCode().value());
+            System.out.println("Response body: " + (response.getBody() != null ? response.getBody().substring(0, Math.min(100, response.getBody().length())) + "..." : "null"));
+            
+            execution.setActualStatusCode(response.getStatusCode().value());
+            execution.setActualResponseBody(response.getBody());
+            execution.setActualHeaders(response.getHeaders().toString());
+            
+            // Basic validation based on expected values
+            List<String> validationResults = new ArrayList<>();
+            boolean passed = true;
+            
+            // Check status code
+            if (scenario.getExpectedStatusCode() != null) {
+                boolean statusCodePassed = response.getStatusCode().value() == scenario.getExpectedStatusCode();
+                validationResults.add("Status Code Validation: " + (statusCodePassed ? "PASSED" : "FAILED") + 
+                                    " (Expected: " + scenario.getExpectedStatusCode() + ", Actual: " + response.getStatusCode().value() + ")");
+                if (!statusCodePassed) passed = false;
+            }
+            
+            // Check response body
+            if (scenario.getExpectedResponseSchema() != null && !scenario.getExpectedResponseSchema().isEmpty()) {
+                try {
+                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    mapper.readTree(response.getBody());
+                    validationResults.add("Response Schema Validation: PASSED (Valid JSON)");
+                } catch (Exception e) {
+                    validationResults.add("Response Schema Validation: FAILED (Invalid JSON: " + e.getMessage() + ")");
+                    passed = false;
+                }
+            }
+            
+            execution.setStatus(passed ? TestExecutionStatus.PASSED : TestExecutionStatus.FAILED);
+            execution.setValidationResults(String.join("\n", validationResults));
+            
+            System.out.println("Test scenario execution completed. Status: " + execution.getStatus());
+            
+        } catch (Exception e) {
+            System.err.println("Error executing test scenario: " + e.getMessage());
+            e.printStackTrace();
+            execution.setStatus(TestExecutionStatus.FAILED);
+            execution.setErrorMessage(e.getMessage());
+            execution.setValidationResults("Error: " + e.getMessage());
+        }
+        
+        // Calculate execution time
+        long executionTime = System.currentTimeMillis() - startTime;
+        execution.setExecutionTimeMs(executionTime);
+        
+        testExecutionRepository.save(execution);
+    }
+    
+    private ResponseEntity<String> executeHttpRequestForScenario(TestScenario scenario) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        
+        HttpEntity<String> entity = new HttpEntity<>(scenario.getRequestBody(), headers);
+        
+        HttpMethod method = HttpMethod.valueOf(scenario.getHttpMethod());
+        
+        // Ensure the endpoint has a complete URL
+        String endpoint = scenario.getEndpoint();
+        if (!endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
+            // If it's a relative path, prepend a default base URL
+            endpoint = "http://localhost:8080" + (endpoint.startsWith("/") ? "" : "/") + endpoint;
+        }
+        
+        return restTemplate.exchange(endpoint, method, entity, String.class);
     }
     
     public TestRun retryFailedTests(TestRun testRun) {

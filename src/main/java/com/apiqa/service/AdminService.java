@@ -292,7 +292,16 @@ public class AdminService {
         );
         testRun = testRunRepository.save(testRun);
         
-        return testExecutionService.executeTestCase(testCase, testRun);
+        System.out.println("Executing test case: " + testCase.getName() + " with ID: " + testCaseId);
+        System.out.println("Test case endpoint: " + testCase.getEndpoint());
+        System.out.println("Test case method: " + testCase.getHttpMethod());
+        
+        TestExecution execution = testExecutionService.executeTestCase(testCase, testRun);
+        
+        System.out.println("Test execution completed. Status: " + execution.getStatus());
+        System.out.println("Test execution ID: " + execution.getId());
+        
+        return execution;
     }
     
     public boolean executeTestCaseStep(Long testCaseStepId) {

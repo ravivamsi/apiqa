@@ -21,4 +21,7 @@ public interface ApiSpecRepository extends JpaRepository<ApiSpec, Long> {
     
     @Query("SELECT a FROM ApiSpec a WHERE a.name = :name AND a.version = :version")
     Optional<ApiSpec> findByNameAndVersion(@Param("name") String name, @Param("version") String version);
+    
+    @Query("SELECT DISTINCT a FROM ApiSpec a LEFT JOIN FETCH a.featureFiles ORDER BY a.uploadedAt DESC")
+    List<ApiSpec> findAllWithFeatureFilesOrderByUploadedAtDesc();
 }

@@ -6,12 +6,14 @@ import com.apiqa.model.TestRunType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
+@Transactional
 public class ScheduledTestService {
     
     @Autowired
@@ -47,7 +49,9 @@ public class ScheduledTestService {
                     System.out.println("Running scheduled tests for API Spec: " + apiSpec.getName() + " (ID: " + apiSpec.getId() + ")");
                     
                     // Check if the API spec has any feature files (tests)
-                    if (apiSpec.getFeatureFiles().isEmpty()) {
+                    // Force initialization of the collection within the transaction
+                    int featureFileCount = apiSpec.getFeatureFiles().size();
+                    if (featureFileCount == 0) {
                         System.out.println("  - No tests available for API Spec: " + apiSpec.getName());
                         continue;
                     }

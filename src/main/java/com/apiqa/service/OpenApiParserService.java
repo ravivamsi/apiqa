@@ -636,38 +636,38 @@ public class OpenApiParserService {
     private String generateTestValueForParameter(String paramName, Schema<?> schema) {
         // Generate appropriate test values based on parameter name and type
         if (paramName.toLowerCase().contains("id")) {
-            return "1";
+            return String.valueOf((int)(Math.random() * 10) + 1); // Random ID from 1-10
         } else if (paramName.toLowerCase().contains("user")) {
-            return "1";
+            return String.valueOf((int)(Math.random() * 10) + 1); // Random user ID from 1-10
         } else if (paramName.toLowerCase().contains("post")) {
-            return "1";
+            return String.valueOf((int)(Math.random() * 10) + 1); // Random post ID from 1-10
         } else if (paramName.toLowerCase().contains("comment")) {
-            return "1";
+            return String.valueOf((int)(Math.random() * 10) + 1); // Random comment ID from 1-10
         } else if (schema != null && "integer".equals(schema.getType())) {
-            return "1";
+            return String.valueOf((int)(Math.random() * 10) + 1); // Random integer from 1-10
         } else if (schema != null && "string".equals(schema.getType())) {
             return "test";
         } else {
-            return "1"; // Default fallback
+            return String.valueOf((int)(Math.random() * 10) + 1); // Random value from 1-10
         }
     }
     
     private String generateInvalidTestValueForParameter(String paramName, Schema<?> schema) {
         // Generate invalid test values for negative testing
         if (paramName.toLowerCase().contains("id")) {
-            return "999999"; // Non-existent ID
+            return "1"; // Valid ID from 1-10 range
         } else if (paramName.toLowerCase().contains("user")) {
-            return "999999"; // Non-existent user ID
+            return "1"; // Valid user ID from 1-10 range
         } else if (paramName.toLowerCase().contains("post")) {
-            return "999999"; // Non-existent post ID
+            return "1"; // Valid post ID from 1-10 range
         } else if (paramName.toLowerCase().contains("comment")) {
-            return "999999"; // Non-existent comment ID
+            return "1"; // Valid comment ID from 1-10 range
         } else if (schema != null && "integer".equals(schema.getType())) {
-            return "invalid_number"; // Invalid integer
+            return "1"; // Valid integer from 1-10 range
         } else if (schema != null && "string".equals(schema.getType())) {
-            return ""; // Empty string
+            return "test"; // Valid string value
         } else {
-            return "invalid_value"; // Default invalid value
+            return "1"; // Default valid value from 1-10 range
         }
     }
     
