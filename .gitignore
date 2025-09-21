@@ -1,3 +1,6 @@
+target/
+test_execution_demo.sh
+
 # Logs
 logs
 *.log
