@@ -54,6 +54,11 @@
                                 <i class="bi bi-play-circle"></i> Test Runs
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:href="@{/admin}">
+                                <i class="bi bi-gear"></i> Admin Panel
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>
@@ -74,8 +79,11 @@
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2">Dashboard</h1>
                     <div class="btn-toolbar mb-2 mb-md-0">
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                        <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#uploadModal">
                             <i class="bi bi-upload"></i> Upload API Spec
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="runScheduledTests()">
+                            <i class="bi bi-clock"></i> Run Scheduled Tests
                         </button>
                     </div>
                 </div>
@@ -132,8 +140,9 @@
                             <div class="card-body">
                                 <div class="d-flex justify-content-between">
                                     <div>
-                                        <h4>0</h4>
+                                        <h4 th:text="${passRate} + '%'">0%</h4>
                                         <p class="mb-0">Pass Rate</p>
+                                        <small th:text="${successfulTestRuns} + '/' + ${totalTestRuns} + ' runs'">0/0 runs</small>
                                     </div>
                                     <div class="align-self-center">
                                         <i class="bi bi-graph-up fs-1"></i>
@@ -304,6 +313,43 @@
             });
             
             return false;
+        }
+        
+        function runScheduledTests() {
+            if (confirm('Run scheduled tests for all API specs now?')) {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                
+                // Show loading state
+                button.innerHTML = '<i class="bi bi-hourglass-split"></i> Running...';
+                button.disabled = true;
+                
+                fetch('/api/scheduled-tests/run', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }).then(response => {
+                    if (response.ok) {
+                        return response.text().then(text => {
+                            alert('Scheduled tests executed successfully!');
+                            // Refresh the page to show updated test runs
+                            window.location.reload();
+                        });
+                    } else {
+                        return response.text().then(text => {
+                            alert('Failed to run scheduled tests: ' + text);
+                        });
+                    }
+                }).catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to run scheduled tests: ' + error.message);
+                }).finally(() => {
+                    // Reset button state
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                });
+            }
         }
     </script>
 </body>

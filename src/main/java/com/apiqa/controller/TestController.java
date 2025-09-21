@@ -38,4 +38,19 @@ public class TestController {
         
         return ResponseEntity.ok(result.toString());
     }
+    
+    @GetMapping("/hello")
+    public ResponseEntity<String> hello() {
+        return ResponseEntity.ok("Hello from APIQA Test Endpoint!");
+    }
+    
+    @GetMapping("/users")
+    public ResponseEntity<String> getUsers() {
+        return ResponseEntity.ok("{\"users\": [{\"id\": 1, \"name\": \"John Doe\"}, {\"id\": 2, \"name\": \"Jane Smith\"}]}");
+    }
+    
+    @PostMapping("/users")
+    public ResponseEntity<String> createUser(@RequestBody String userData) {
+        return ResponseEntity.ok("{\"message\": \"User created successfully\", \"data\": " + userData + "}");
+    }
 }

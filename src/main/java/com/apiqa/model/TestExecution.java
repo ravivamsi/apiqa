@@ -52,8 +52,12 @@ public class TestExecution {
     private Long testRunId;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "test_scenario_id", nullable = false)
+    @JoinColumn(name = "test_scenario_id")
     private TestScenario testScenario;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "test_case_id")
+    private TestCase testCase;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "test_run_id", nullable = true, insertable = false, updatable = false)
@@ -64,6 +68,14 @@ public class TestExecution {
     
     public TestExecution(TestScenario testScenario, TestRun testRun) {
         this.testScenario = testScenario;
+        this.testRun = testRun;
+        this.testRunId = testRun != null ? testRun.getId() : null;
+        this.status = TestExecutionStatus.PENDING;
+        this.executedAt = LocalDateTime.now();
+    }
+    
+    public TestExecution(TestCase testCase, TestRun testRun) {
+        this.testCase = testCase;
         this.testRun = testRun;
         this.testRunId = testRun != null ? testRun.getId() : null;
         this.status = TestExecutionStatus.PENDING;
@@ -198,5 +210,13 @@ public class TestExecution {
     
     public void setRequestBody(String requestBody) {
         this.requestBody = requestBody;
+    }
+    
+    public TestCase getTestCase() {
+        return testCase;
+    }
+    
+    public void setTestCase(TestCase testCase) {
+        this.testCase = testCase;
     }
 }

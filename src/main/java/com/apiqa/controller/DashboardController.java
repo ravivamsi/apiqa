@@ -6,6 +6,7 @@ import com.apiqa.model.TestExecution;
 import com.apiqa.dto.TestExecutionDetailsDto;
 import com.apiqa.service.ApiQaService;
 import com.apiqa.service.TestExecutionService;
+import com.apiqa.service.ScheduledTestService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -25,15 +26,28 @@ public class DashboardController {
     @Autowired
     private TestExecutionService testExecutionService;
     
+    @Autowired
+    private ScheduledTestService scheduledTestService;
+    
     @GetMapping
     public String dashboard(Model model) {
         List<ApiSpec> apiSpecs = apiQaService.getAllApiSpecs();
         List<TestRun> recentTestRuns = apiQaService.getAllTestRuns();
         
+        // Calculate pass rate
+        long totalTestRuns = recentTestRuns.size();
+        long successfulTestRuns = recentTestRuns.stream()
+                .filter(run -> run.getStatus() == com.apiqa.model.TestRunStatus.COMPLETED)
+                .count();
+        
+        double passRate = totalTestRuns > 0 ? (double) successfulTestRuns / totalTestRuns * 100 : 0.0;
+        
         model.addAttribute("apiSpecs", apiSpecs);
         model.addAttribute("recentTestRuns", recentTestRuns);
         model.addAttribute("totalSpecs", apiSpecs.size());
-        model.addAttribute("totalTestRuns", recentTestRuns.size());
+        model.addAttribute("totalTestRuns", totalTestRuns);
+        model.addAttribute("successfulTestRuns", successfulTestRuns);
+        model.addAttribute("passRate", Math.round(passRate * 100.0) / 100.0);
         
         return "dashboard";
     }
@@ -147,6 +161,17 @@ public class DashboardController {
             }
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
+        }
+    }
+    
+    @PostMapping("/api/scheduled-tests/run")
+    @ResponseBody
+    public ResponseEntity<String> runScheduledTestsManually() {
+        try {
+            scheduledTestService.runScheduledTestsManually();
+            return ResponseEntity.ok("Scheduled tests executed successfully");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Failed to run scheduled tests: " + e.getMessage());
         }
     }
 }

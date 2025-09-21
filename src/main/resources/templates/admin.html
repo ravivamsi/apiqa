@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APIQA - Admin Panel</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- SortableJS for drag and drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+        .main-content {
+            padding: 20px;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            transition: transform 0.2s;
+        }
+        .status-badge {
+            font-size: 0.8em;
+        }
+        .sortable-list {
+            min-height: 50px;
+        }
+        .sortable-item {
+            cursor: move;
+            margin-bottom: 5px;
+        }
+        .step-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 5px;
+        }
+        .step-item:hover {
+            background: #e9ecef;
+        }
+        .step-type-badge {
+            font-size: 0.75em;
+        }
+        .json-path-input {
+            font-family: 'Courier New', monospace;
+        }
+        .hierarchy-item {
+            margin-left: 20px;
+            border-left: 2px solid #dee2e6;
+            padding-left: 15px;
+            margin-bottom: 10px;
+        }
+        .execution-btn {
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h4 class="text-primary">APIQA</h4>
+                        <small class="text-muted">Admin Panel</small>
+                    </div>
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" th:href="@{/}">
+                                <i class="bi bi-house-door"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:href="@{/specs}">
+                                <i class="bi bi-file-earmark-code"></i> API Specs
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:href="@{/test-runs}">
+                                <i class="bi bi-play-circle"></i> Test Runs
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" th:href="@{/admin}">
+                                <i class="bi bi-gear"></i> Admin Panel
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <!-- Alerts -->
+                <div th:if="${param.success}" class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle"></i> <span th:text="${param.success[0]}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                
+                <div th:if="${param.error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i> <span th:text="${param.error[0]}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Admin Panel</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#testSuiteModal">
+                            <i class="bi bi-plus"></i> New Test Suite
+                        </button>
+                        <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#testCaseModal">
+                            <i class="bi bi-plus"></i> New Test Case
+                        </button>
+                        <button type="button" class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#customEndpointModal">
+                            <i class="bi bi-plus"></i> New Custom Endpoint
+                        </button>
+                        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#testCaseStepModal">
+                            <i class="bi bi-plus"></i> New Test Step
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Test Suites with Hierarchy -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Test Suites & Test Cases</h5>
+                            </div>
+                            <div class="card-body">
+                                <div th:each="testSuite : ${testSuites}" class="mb-4">
+                                    <div class="card">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-0" th:text="${testSuite.name}">Test Suite Name</h6>
+                                                <small class="text-muted" th:text="${testSuite.description}">Description</small>
+                                                <br>
+                                                <span class="badge bg-primary" th:text="${testSuite.testType.displayName}">Test Type</span>
+                                            </div>
+                                            <div>
+                                                <button class="btn btn-sm btn-outline-primary me-1" 
+                                                        th:onclick="'editTestSuite(' + ${testSuite.id} + ')'">
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </button>
+                                                <button class="btn btn-sm btn-success me-1" 
+                                                        th:onclick="'executeTestSuite(' + ${testSuite.id} + ')'">
+                                                    <i class="bi bi-play"></i> Execute
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" 
+                                                        th:onclick="'deleteTestSuite(' + ${testSuite.id} + ')'">
+                                                    <i class="bi bi-trash"></i> Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <div th:each="testCase : ${testCases}" 
+                                                 th:if="${testCase.testSuite != null and testCase.testSuite.id == testSuite.id}" 
+                                                 class="hierarchy-item">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h6 class="mb-1" th:text="${testCase.name}">Test Case Name</h6>
+                                                        <small class="text-muted" th:text="${testCase.description}">Description</small>
+                                                        <br>
+                                                        <span class="badge bg-secondary" th:text="${testCase.httpMethod}">GET</span>
+                                                        <span class="badge bg-light text-dark" th:text="${testCase.endpoint}">/api/endpoint</span>
+                                                    </div>
+                                                    <div>
+                                                        <button class="btn btn-sm btn-outline-primary me-1" 
+                                                                th:onclick="'editTestCase(' + ${testCase.id} + ')'">
+                                                            <i class="bi bi-pencil"></i> Edit
+                                                        </button>
+                                                        <button class="btn btn-sm btn-success me-1" 
+                                                                th:onclick="'executeTestCase(' + ${testCase.id} + ')'">
+                                                            <i class="bi bi-play"></i> Execute
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-danger" 
+                                                                th:onclick="'deleteTestCase(' + ${testCase.id} + ')'">
+                                                            <i class="bi bi-trash"></i> Delete
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Test Case Steps -->
+                                                <div class="mt-3">
+                                                    <h6>Test Steps:</h6>
+                                                    <div id="testSteps-${testCase.id}" class="sortable-list">
+                                                        <!-- Test steps will be loaded here via AJAX -->
+                                                    </div>
+                                                    <button class="btn btn-sm btn-outline-warning mt-2" 
+                                                            th:onclick="'addTestCaseStep(' + ${testCase.id} + ')'">
+                                                        <i class="bi bi-plus"></i> Add Step
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Add Test Case Button -->
+                                            <button class="btn btn-sm btn-outline-success mt-2" 
+                                                    th:onclick="'addTestCaseToSuite(' + ${testSuite.id} + ')'">
+                                                <i class="bi bi-plus"></i> Add Test Case to Suite
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Custom Endpoints -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Custom Endpoints</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div th:each="endpoint : ${customEndpoints}" class="col-md-6 col-lg-4 mb-3">
+                                        <div class="card card-hover">
+                                            <div class="card-body">
+                                                <h6 class="card-title" th:text="${endpoint.name}">Endpoint Name</h6>
+                                                <p class="card-text" th:text="${endpoint.description}">Description</p>
+                                                <div class="mb-2">
+                                                    <span class="badge bg-primary" th:text="${endpoint.httpMethod}">GET</span>
+                                                    <span class="badge bg-secondary ms-1" th:text="${endpoint.endpoint}">/api/endpoint</span>
+                                                </div>
+                                                <small class="text-muted">
+                                                    Created by: <span th:text="${endpoint.createdBy}">Admin</span><br>
+                                                    Created: <span th:text="${endpoint.createdAt}">2024-01-01</span>
+                                                </small>
+                                                <div class="mt-3">
+                                                    <button class="btn btn-sm btn-outline-primary me-2" 
+                                                            th:onclick="'editCustomEndpoint(' + ${endpoint.id} + ')'">
+                                                        <i class="bi bi-pencil"></i> Edit
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" 
+                                                            th:onclick="'deleteCustomEndpoint(' + ${endpoint.id} + ')'">
+                                                        <i class="bi bi-trash"></i> Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Test Suite Modal -->
+    <div class="modal fade" id="testSuiteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Test Suite</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form th:action="@{/admin/test-suites}" method="post">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="testSuiteName" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="testSuiteName" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="testSuiteDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="testSuiteDescription" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="testSuiteTestType" class="form-label">Test Type</label>
+                            <select class="form-select" id="testSuiteTestType" name="testType" required>
+                                <option value="">Select Test Type</option>
+                                <option th:each="testType : ${T(com.apiqa.model.TestType).values()}" 
+                                        th:value="${testType.name()}" 
+                                        th:text="${testType.displayName}">Test Type</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="testSuiteCreatedBy" class="form-label">Created By</label>
+                            <input type="text" class="form-control" id="testSuiteCreatedBy" name="createdBy" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Test Case Modal -->
+    <div class="modal fade" id="testCaseModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Test Case</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form th:action="@{/admin/test-cases}" method="post">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="testCaseName" class="form-label">Name</label>
+                                    <input type="text" class="form-control" id="testCaseName" name="name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="testCaseHttpMethod" class="form-label">HTTP Method</label>
+                                    <select class="form-select" id="testCaseHttpMethod" name="httpMethod" required>
+                                        <option value="GET">GET</option>
+                                        <option value="POST">POST</option>
+                                        <option value="PUT">PUT</option>
+                                        <option value="PATCH">PATCH</option>
+                                        <option value="DELETE">DELETE</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="testCaseDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="testCaseDescription" name="description" rows="2"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="testCaseEndpoint" class="form-label">Endpoint URL</label>
+                            <input type="text" class="form-control" id="testCaseEndpoint" name="endpoint" placeholder="/api/users" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="testCaseApiSpec" class="form-label">API Spec (Optional)</label>
+                                    <select class="form-select" id="testCaseApiSpec" name="apiSpecId">
+                                        <option value="">Select API Spec</option>
+                                        <option th:each="spec : ${apiSpecs}" 
+                                                th:value="${spec.id}" 
+                                                th:text="${spec.name}">API Spec</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="testCaseTestSuite" class="form-label">Test Suite</label>
+                                    <select class="form-select" id="testCaseTestSuite" name="testSuiteId" required>
+                                        <option value="">Select Test Suite</option>
+                                        <option th:each="testSuite : ${testSuites}" 
+                                                th:value="${testSuite.id}" 
+                                                th:text="${testSuite.name}">Test Suite</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="testCaseRequestBody" class="form-label">Request Body (JSON)</label>
+                            <textarea class="form-control" id="testCaseRequestBody" name="requestBody" rows="4" 
+                                      placeholder='{"key": "value"}'></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="testCaseExpectedStatusCode" class="form-label">Expected Status Code</label>
+                                    <input type="number" class="form-control" id="testCaseExpectedStatusCode" name="expectedStatusCode" 
+                                           placeholder="200">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="testCaseCreatedBy" class="form-label">Created By</label>
+                                    <input type="text" class="form-control" id="testCaseCreatedBy" name="createdBy" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="testCaseExpectedResponseSchema" class="form-label">Expected Response Schema (JSON)</label>
+                            <textarea class="form-control" id="testCaseExpectedResponseSchema" name="expectedResponseSchema" rows="4" 
+                                      placeholder='{"type": "object", "properties": {...}}'></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="testCaseExpectedHeaders" class="form-label">Expected Headers</label>
+                            <textarea class="form-control" id="testCaseExpectedHeaders" name="expectedHeaders" rows="2" 
+                                      placeholder="Content-Type: application/json"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Custom Endpoint Modal -->
+    <div class="modal fade" id="customEndpointModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Custom Endpoint</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form th:action="@{/admin/custom-endpoints}" method="post">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="endpointName" class="form-label">Name</label>
+                                    <input type="text" class="form-control" id="endpointName" name="name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="endpointHttpMethod" class="form-label">HTTP Method</label>
+                                    <select class="form-select" id="endpointHttpMethod" name="httpMethod" required>
+                                        <option value="GET">GET</option>
+                                        <option value="POST">POST</option>
+                                        <option value="PUT">PUT</option>
+                                        <option value="PATCH">PATCH</option>
+                                        <option value="DELETE">DELETE</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endpointDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="endpointDescription" name="description" rows="2"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endpointUrl" class="form-label">Endpoint URL</label>
+                            <input type="text" class="form-control" id="endpointUrl" name="endpoint" placeholder="/api/users" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="endpointApiSpec" class="form-label">API Spec (Optional)</label>
+                                    <select class="form-select" id="endpointApiSpec" name="apiSpecId">
+                                        <option value="">Select API Spec</option>
+                                        <option th:each="spec : ${apiSpecs}" 
+                                                th:value="${spec.id}" 
+                                                th:text="${spec.name}">API Spec</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="endpointTestSuite" class="form-label">Test Suite (Optional)</label>
+                                    <select class="form-select" id="endpointTestSuite" name="testSuiteId">
+                                        <option value="">Select Test Suite</option>
+                                        <option th:each="testSuite : ${testSuites}" 
+                                                th:value="${testSuite.id}" 
+                                                th:text="${testSuite.name}">Test Suite</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endpointRequestBody" class="form-label">Request Body (JSON)</label>
+                            <textarea class="form-control" id="endpointRequestBody" name="requestBody" rows="4" 
+                                      placeholder='{"key": "value"}'></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="endpointExpectedStatusCode" class="form-label">Expected Status Code</label>
+                                    <input type="number" class="form-control" id="endpointExpectedStatusCode" name="expectedStatusCode" 
+                                           placeholder="200">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="endpointCreatedBy" class="form-label">Created By</label>
+                                    <input type="text" class="form-control" id="endpointCreatedBy" name="createdBy" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endpointExpectedResponseSchema" class="form-label">Expected Response Schema (JSON)</label>
+                            <textarea class="form-control" id="endpointExpectedResponseSchema" name="expectedResponseSchema" rows="4" 
+                                      placeholder='{"type": "object", "properties": {...}}'></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endpointExpectedHeaders" class="form-label">Expected Headers</label>
+                            <textarea class="form-control" id="endpointExpectedHeaders" name="expectedHeaders" rows="2" 
+                                      placeholder="Content-Type: application/json"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Test Case Step Modal -->
+    <div class="modal fade" id="testCaseStepModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Test Case Step</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form th:action="@{/admin/test-case-steps}" method="post">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="stepName" class="form-label">Step Name</label>
+                                    <input type="text" class="form-control" id="stepName" name="stepName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="stepType" class="form-label">Step Type</label>
+                                    <select class="form-select" id="stepType" name="stepType" required onchange="updateStepFields()">
+                                        <option value="">Select Step Type</option>
+                                        <option value="VALIDATE_STATUS_CODE">Validate Status Code</option>
+                                        <option value="VALIDATE_RESPONSE_BODY">Validate Response Body</option>
+                                        <option value="VALIDATE_RESPONSE_SCHEMA">Validate Response Schema</option>
+                                        <option value="VALIDATE_HEADERS">Validate Headers</option>
+                                        <option value="EXTRACT_VALUE">Extract Value</option>
+                                        <option value="ASSERT_VALUE">Assert Value</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="stepDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="stepDescription" name="description" rows="2"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="stepTestCase" class="form-label">Test Case</label>
+                                    <select class="form-select" id="stepTestCase" name="testCaseId" required>
+                                        <option value="">Select Test Case</option>
+                                        <option th:each="testCase : ${testCases}" 
+                                                th:value="${testCase.id}" 
+                                                th:text="${testCase.name}">Test Case</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="stepOrder" class="form-label">Step Order</label>
+                                    <input type="number" class="form-control" id="stepOrder" name="stepOrder" value="1" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="stepCreatedBy" class="form-label">Created By</label>
+                            <input type="text" class="form-control" id="stepCreatedBy" name="createdBy" required>
+                        </div>
+                        <div id="stepSpecificFields">
+                            <div class="mb-3" id="expectedValueField" style="display: none;">
+                                <label for="expectedValue" class="form-label">Expected Value</label>
+                                <input type="text" class="form-control" id="expectedValue" name="expectedValue">
+                            </div>
+                            <div class="mb-3" id="jsonPathField" style="display: none;">
+                                <label for="jsonPath" class="form-label">JSON Path</label>
+                                <input type="text" class="form-control json-path-input" id="jsonPath" name="jsonPath" 
+                                       placeholder="$.data.id">
+                            </div>
+                            <div class="row" id="assertionFields" style="display: none;">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="assertionType" class="form-label">Assertion Type</label>
+                                        <select class="form-select" id="assertionType" name="assertionType">
+                                            <option value="EQUALS">Equals</option>
+                                            <option value="CONTAINS">Contains</option>
+                                            <option value="NOT_NULL">Not Null</option>
+                                            <option value="NOT_EMPTY">Not Empty</option>
+                                            <option value="GREATER_THAN">Greater Than</option>
+                                            <option value="LESS_THAN">Less Than</option>
+                                            <option value="REGEX_MATCH">Regex Match</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="assertionValue" class="form-label">Assertion Value</label>
+                                        <input type="text" class="form-control" id="assertionValue" name="assertionValue">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Update step fields based on step type
+        function updateStepFields() {
+            const stepType = document.getElementById('stepType').value;
+            const expectedValueField = document.getElementById('expectedValueField');
+            const jsonPathField = document.getElementById('jsonPathField');
+            const assertionFields = document.getElementById('assertionFields');
+            
+            // Hide all fields first
+            expectedValueField.style.display = 'none';
+            jsonPathField.style.display = 'none';
+            assertionFields.style.display = 'none';
+            
+            // Show relevant fields based on step type
+            switch(stepType) {
+                case 'VALIDATE_STATUS_CODE':
+                case 'VALIDATE_RESPONSE_BODY':
+                case 'VALIDATE_RESPONSE_SCHEMA':
+                case 'VALIDATE_HEADERS':
+                    expectedValueField.style.display = 'block';
+                    break;
+                case 'EXTRACT_VALUE':
+                    jsonPathField.style.display = 'block';
+                    break;
+                case 'ASSERT_VALUE':
+                    jsonPathField.style.display = 'block';
+                    assertionFields.style.display = 'block';
+                    break;
+            }
+        }
+        
+        // Load test case steps for a specific test case
+        function loadTestCaseSteps(testCaseId) {
+            const url = `/admin/api/test-case-steps/test-case/${testCaseId}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(steps => {
+                    const container = document.getElementById(`testSteps-${testCaseId}`);
+                    container.innerHTML = '';
+                    
+                    if (steps.length === 0) {
+                        container.innerHTML = '<p class="text-muted">No test case steps found.</p>';
+                    } else {
+                        steps.forEach(step => {
+                            const stepElement = createStepElement(step);
+                            container.appendChild(stepElement);
+                        });
+                        
+                        // Initialize sortable
+                        new Sortable(container, {
+                            animation: 150,
+                            onEnd: function(evt) {
+                                const stepIds = Array.from(container.children).map(el => el.dataset.stepId);
+                                reorderSteps(testCaseId, stepIds);
+                            }
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading test case steps:', error);
+                });
+        }
+        
+        // Create step element
+        function createStepElement(step) {
+            const div = document.createElement('div');
+            div.className = 'step-item sortable-item';
+            div.dataset.stepId = step.id;
+            
+            const stepTypeBadge = getStepTypeBadge(step.stepType);
+            
+            div.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${step.stepName}</strong>
+                        <span class="badge step-type-badge ${stepTypeBadge.class}">${stepTypeBadge.text}</span>
+                        <small class="text-muted d-block">${step.description || ''}</small>
+                        <small class="text-muted">
+                            Order: ${step.stepOrder} | 
+                            ${step.jsonPath ? `JSON Path: ${step.jsonPath}` : ''}
+                            ${step.expectedValue ? `Expected: ${step.expectedValue}` : ''}
+                        </small>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editTestCaseStep(${step.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-success me-1" onclick="executeTestCaseStep(${step.id})">
+                            <i class="bi bi-play"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTestCaseStep(${step.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            return div;
+        }
+        
+        // Get step type badge
+        function getStepTypeBadge(stepType) {
+            const badges = {
+                'VALIDATE_STATUS_CODE': { class: 'bg-primary', text: 'Status Code' },
+                'VALIDATE_RESPONSE_BODY': { class: 'bg-info', text: 'Response Body' },
+                'VALIDATE_RESPONSE_SCHEMA': { class: 'bg-warning', text: 'Schema' },
+                'VALIDATE_HEADERS': { class: 'bg-secondary', text: 'Headers' },
+                'EXTRACT_VALUE': { class: 'bg-success', text: 'Extract' },
+                'ASSERT_VALUE': { class: 'bg-danger', text: 'Assert' }
+            };
+            return badges[stepType] || { class: 'bg-light', text: stepType };
+        }
+        
+        // Reorder steps
+        function reorderSteps(testCaseId, stepIds) {
+            fetch('/admin/api/test-case-steps/reorder', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(stepIds)
+            })
+            .then(response => response.text())
+            .then(result => {
+                console.log('Steps reordered successfully');
+            })
+            .catch(error => {
+                console.error('Error reordering steps:', error);
+            });
+        }
+        
+        // Execution functions
+        function executeTestSuite(id) {
+            const runName = prompt('Enter test run name:');
+            if (runName) {
+                window.location.href = `/admin/test-suites/${id}/execute?runName=${encodeURIComponent(runName)}`;
+            }
+        }
+        
+        function executeTestCase(id) {
+            if (confirm('Execute this test case?')) {
+                window.location.href = `/admin/test-cases/${id}/execute`;
+            }
+        }
+        
+        function executeTestCaseStep(id) {
+            if (confirm('Execute this test case step?')) {
+                window.location.href = `/admin/test-case-steps/${id}/execute`;
+            }
+        }
+        
+        // Edit functions (placeholder - would need to be implemented)
+        function editTestSuite(id) {
+            console.log('Edit test suite:', id);
+        }
+        
+        function deleteTestSuite(id) {
+            if (confirm('Are you sure you want to delete this test suite?')) {
+                window.location.href = `/admin/test-suites/${id}/delete`;
+            }
+        }
+        
+        function editTestCase(id) {
+            console.log('Edit test case:', id);
+        }
+        
+        function deleteTestCase(id) {
+            if (confirm('Are you sure you want to delete this test case?')) {
+                window.location.href = `/admin/test-cases/${id}/delete`;
+            }
+        }
+        
+        function editCustomEndpoint(id) {
+            console.log('Edit custom endpoint:', id);
+        }
+        
+        function deleteCustomEndpoint(id) {
+            if (confirm('Are you sure you want to delete this custom endpoint?')) {
+                window.location.href = `/admin/custom-endpoints/${id}/delete`;
+            }
+        }
+        
+        function editTestCaseStep(id) {
+            console.log('Edit test case step:', id);
+        }
+        
+        function deleteTestCaseStep(id) {
+            if (confirm('Are you sure you want to delete this test case step?')) {
+                window.location.href = `/admin/test-case-steps/${id}/delete`;
+            }
+        }
+        
+        function addTestCaseToSuite(testSuiteId) {
+            // Set the test suite in the test case modal
+            document.getElementById('testCaseTestSuite').value = testSuiteId;
+            const modal = new bootstrap.Modal(document.getElementById('testCaseModal'));
+            modal.show();
+        }
+        
+        function addTestCaseStep(testCaseId) {
+            // Set the test case in the step modal
+            document.getElementById('stepTestCase').value = testCaseId;
+            const modal = new bootstrap.Modal(document.getElementById('testCaseStepModal'));
+            modal.show();
+        }
+        
+        // Load test case steps when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load steps for all test cases
+            const testCases = document.querySelectorAll('[id^="testSteps-"]');
+            testCases.forEach(container => {
+                const testCaseId = container.id.replace('testSteps-', '');
+                loadTestCaseSteps(testCaseId);
+            });
+        });
+    </script>
+</body>
+</html>

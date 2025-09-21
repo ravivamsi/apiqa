@@ -49,9 +49,17 @@ public class TestRun {
     private String errorMessage;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "api_spec_id", nullable = false)
+    @JoinColumn(name = "api_spec_id")
     @JsonIgnore
     private ApiSpec apiSpec;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "test_suite_id")
+    @JsonIgnore
+    private TestSuite testSuite;
+    
+    @Column
+    private String testType;
     
     @OneToMany(mappedBy = "testRun", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore
@@ -66,6 +74,16 @@ public class TestRun {
         this.runName = runName;
         this.runType = runType;
         this.apiSpec = apiSpec;
+        this.status = TestRunStatus.PENDING;
+        this.startedAt = LocalDateTime.now();
+        this.testExecutions = new java.util.ArrayList<>();
+    }
+    
+    public TestRun(String runName, TestRunType runType, String testType, TestSuite testSuite) {
+        this.runName = runName;
+        this.runType = runType;
+        this.testType = testType;
+        this.testSuite = testSuite;
         this.status = TestRunStatus.PENDING;
         this.startedAt = LocalDateTime.now();
         this.testExecutions = new java.util.ArrayList<>();
@@ -182,5 +200,29 @@ public class TestRun {
     
     public void setTestExecutions(List<TestExecution> testExecutions) {
         this.testExecutions = testExecutions;
+    }
+    
+    public TestSuite getTestSuite() {
+        return testSuite;
+    }
+    
+    public void setTestSuite(TestSuite testSuite) {
+        this.testSuite = testSuite;
+    }
+    
+    public String getTestType() {
+        return testType;
+    }
+    
+    public void setTestType(String testType) {
+        this.testType = testType;
+    }
+    
+    public LocalDateTime getEndedAt() {
+        return completedAt;
+    }
+    
+    public void setEndedAt(LocalDateTime endedAt) {
+        this.completedAt = endedAt;
     }
 }
