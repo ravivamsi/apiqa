@@ -29,6 +29,9 @@ public class DashboardController {
     @Autowired
     private ScheduledTestService scheduledTestService;
     
+    @Autowired
+    private com.apiqa.service.EmailService emailService;
+    
     @GetMapping
     public String dashboard(Model model) {
         List<ApiSpec> apiSpecs = apiQaService.getAllApiSpecs();
@@ -111,6 +114,17 @@ public class DashboardController {
         }
     }
     
+    @PostMapping("/specs/{id}/run-tests-by-suite")
+    public String runTestsBySuite(@PathVariable Long id, @RequestParam String runName, @RequestParam String suiteType) {
+        try {
+            com.apiqa.model.TestSuiteType suiteTypeEnum = com.apiqa.model.TestSuiteType.valueOf(suiteType);
+            apiQaService.executeTestRunBySuiteType(id, runName, com.apiqa.model.TestRunType.MANUAL, suiteTypeEnum);
+            return "redirect:/specs/" + id + "?success=" + suiteType + " test run started successfully";
+        } catch (Exception e) {
+            return "redirect:/specs/" + id + "?error=Failed to start " + suiteType + " test run: " + e.getMessage();
+        }
+    }
+    
     @PostMapping("/test-runs/{id}/retry")
     public String retryFailedTests(@PathVariable Long id) {
         try {
@@ -172,6 +186,25 @@ public class DashboardController {
             return ResponseEntity.ok("Scheduled tests executed successfully");
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Failed to run scheduled tests: " + e.getMessage());
+        }
+    }
+    
+    @PostMapping("/test-runs/{id}/send-email")
+    public String sendTestRunEmail(@PathVariable Long id, @RequestParam String toEmail) {
+        try {
+            Optional<TestRun> testRunOpt = apiQaService.getTestRunById(id);
+            if (testRunOpt.isEmpty()) {
+                return "redirect:/test-runs/" + id + "?error=Test run not found";
+            }
+            
+            boolean success = emailService.sendTestRunReport(toEmail, testRunOpt.get());
+            if (success) {
+                return "redirect:/test-runs/" + id + "?success=Test run report sent successfully to " + toEmail;
+            } else {
+                return "redirect:/test-runs/" + id + "?error=Failed to send email. Please check the email address and try again.";
+            }
+        } catch (Exception e) {
+            return "redirect:/test-runs/" + id + "?error=Failed to send email: " + e.getMessage();
         }
     }
 }

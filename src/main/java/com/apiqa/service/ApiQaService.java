@@ -118,6 +118,42 @@ public class ApiQaService {
         return result;
     }
     
+    public TestRun executeTestRunBySuiteType(Long apiSpecId, String runName, TestRunType runType, TestSuiteType suiteType) {
+        Optional<ApiSpec> apiSpecOpt = apiSpecRepository.findById(apiSpecId);
+        if (apiSpecOpt.isEmpty()) {
+            throw new RuntimeException("API Spec not found with ID: " + apiSpecId);
+        }
+        
+        ApiSpec apiSpec = apiSpecOpt.get();
+        
+        // Create and save test run first
+        TestRun testRun = new TestRun(runName, runType, apiSpec);
+        testRun = testRunRepository.save(testRun);
+        
+        // Generate test executions only for scenarios in the specified suite type
+        List<TestExecution> executions = new ArrayList<>();
+        for (FeatureFile featureFile : apiSpec.getFeatureFiles()) {
+            if (featureFile.getSuiteType() == suiteType) {
+                for (TestScenario scenario : featureFile.getTestScenarios()) {
+                    TestExecution execution = new TestExecution(scenario, testRun);
+                    executions.add(execution);
+                }
+            }
+        }
+        
+        if (executions.isEmpty()) {
+            throw new RuntimeException("No test scenarios found for suite type: " + suiteType);
+        }
+        
+        // Add executions to test run (but don't save yet)
+        testRun.getTestExecutions().addAll(executions);
+        
+        // Execute tests synchronously - this will handle saving the executions
+        TestRun result = testExecutionService.executeTestRun(testRun, executions);
+        
+        return result;
+    }
+    
     @Async
     public CompletableFuture<TestRun> executeTestRunAsync(TestRun testRun) {
         TestRun result = testExecutionService.executeTestRun(testRun);

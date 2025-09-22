@@ -54,6 +54,11 @@
                                 <i class="bi bi-play-circle"></i> Test Runs
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:href="@{/admin}">
+                                <i class="bi bi-gear"></i> Admin Panel
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>
@@ -296,6 +301,47 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Run Tests by Suite Modal -->
+                <div class="modal fade" id="runTestsBySuiteModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Run Tests by Suite Type</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form th:action="@{/specs/{id}/run-tests-by-suite(id=${apiSpec.id})}" method="post">
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label for="suiteRunName" class="form-label">Run Name</label>
+                                        <input type="text" class="form-control" id="suiteRunName" name="runName" 
+                                               th:value="'Test Run - ' + ${#dates.format(#dates.createNow(), 'yyyy-MM-dd HH:mm')}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="suiteType" class="form-label">Select Suite Type</label>
+                                        <select class="form-select" id="suiteType" name="suiteType" required>
+                                            <option value="">Choose a suite type...</option>
+                                            <option th:each="feature : ${apiSpec.featureFiles}" 
+                                                    th:value="${feature.suiteType.name()}" 
+                                                    th:text="${feature.suiteType.name()} + ' - ' + ${feature.fileName}">
+                                                SMOKE - smoke_tests.feature
+                                            </option>
+                                        </select>
+                                        <div class="form-text">
+                                            <strong>SMOKE:</strong> Quick validation of basic API functionality<br>
+                                            <strong>SYSTEM:</strong> Comprehensive testing of all CRUD operations<br>
+                                            <strong>INTEGRATION:</strong> End-to-end workflow and integration tests
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Start Suite Test Run</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </main>
         </div>
     </div>
@@ -319,7 +365,7 @@
         }
         
         function runTests(specId) {
-            new bootstrap.Modal(document.getElementById('runTestsModal')).show();
+            new bootstrap.Modal(document.getElementById('runTestsBySuiteModal')).show();
         }
         
         function retryTests(runId) {
