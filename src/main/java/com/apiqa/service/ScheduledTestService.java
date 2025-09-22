@@ -21,9 +21,9 @@ public class ScheduledTestService {
     
     /**
      * Run all available tests for each API spec every 3 minutes
-     * Cron expression: every 3 minutes 
+     * Cron expression: every 4 hours at 0 minutes
      */
-    @Scheduled(cron = "0 */3 * * * *")
+    @Scheduled(cron = "0 0 */4 * * *")  // Every 4 hours at 0 minutes
     public void runScheduledTests() {
         try {
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
