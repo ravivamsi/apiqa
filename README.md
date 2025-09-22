@@ -184,28 +184,3 @@ This project is licensed under the ISC License - see the LICENSE file for detail
 ## Support
 
 For issues and questions, please create an issue in the repository or contact the development team.
-
-
-Server: smtp.mailersend.net
-Port: 587 or 2525
-Username: MS_tlywn1@test-r9084zv9en8gw63d.mlsender.net
-Password: mssp.UnJ3jmM.3vz9dlekv0nlkj50.6bz4DII
-
-API : mlsn.604883fe240aec8ba193876058227584e447dcf7f4d74c7beb6224a2b20a381f
-Brevo: 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
-# ------------------
-# Create a campaign
-# ------------------
-curl -H 'api-key: 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'
--X POST -d '{
-# Define the campaign settings
-"name":"Test Report",
-"subject":"Test Run Report",
-"sender": {"name":"Divya N", "email":"hr@rvytech.com" },
-"type":"classic",
-# Content that will be sent
-"htmlContent":"htmlcontentgoeshere",
-# Select the recipients
-"recipients": { "listIds": [2] }
-}'
-'https://api.brevo.com/v3/emailCampaigns'
