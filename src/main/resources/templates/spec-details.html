@@ -25,6 +25,89 @@
         .status-badge {
             font-size: 0.8em;
         }
+        
+        /* Gherkin Syntax Highlighting */
+        .gherkin-content {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .gherkin-keyword {
+            color: #ffc107;
+            font-weight: bold;
+            background-color: rgba(255, 193, 7, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+        .gherkin-value {
+            color: #28a745;
+            font-weight: bold;
+            background-color: rgba(40, 167, 69, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+        .gherkin-description {
+            color: #212529;
+        }
+        
+        .gherkin-comment {
+            color: #6c757d;
+            font-style: italic;
+        }
+        
+        .gherkin-table {
+            margin: 10px 0;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        
+        .gherkin-table th,
+        .gherkin-table td {
+            border: 1px solid #dee2e6;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .gherkin-table th {
+            background-color: #e9ecef;
+            font-weight: bold;
+        }
+        
+        .gherkin-table td {
+            background-color: #ffffff;
+        }
+        
+        .gherkin-examples {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        
+        .gherkin-scenario {
+            margin: 10px 0;
+            padding: 8px;
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .gherkin-feature {
+            margin: 10px 0;
+            padding: 8px;
+            background-color: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+        }
     </style>
 </head>
 <body>
@@ -267,11 +350,29 @@
                     <div class="modal-dialog modal-xl">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="featureModalTitle">Feature File</h5>
+                                <h5 class="modal-title" id="featureModalTitle">
+                                    <i class="bi bi-file-earmark-code"></i> Feature File
+                                </h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
-                                <pre><code id="featureModalContent">Feature content here</code></pre>
+                                <div class="gherkin-content" id="featureModalContent">
+                                    <div class="text-center text-muted">
+                                        <i class="bi bi-hourglass-split"></i>
+                                        Loading feature content...
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    <i class="bi bi-x-circle"></i> Close
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" onclick="copyFeatureContent()">
+                                    <i class="bi bi-clipboard"></i> Copy Content
+                                </button>
+                                <button type="button" class="btn btn-success" onclick="downloadFeatureFile()">
+                                    <i class="bi bi-download"></i> Download
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -382,10 +483,222 @@
             }
         }
         
+        // Store original content for download
+        let currentFeatureContent = '';
+        let currentFeatureFileName = '';
+        
         function viewFeature(fileName, content) {
-            document.getElementById('featureModalTitle').textContent = fileName;
-            document.getElementById('featureModalContent').textContent = content;
+            currentFeatureFileName = fileName;
+            currentFeatureContent = content;
+            document.getElementById('featureModalTitle').innerHTML = '<i class="bi bi-file-earmark-code"></i> ' + fileName;
+            document.getElementById('featureModalContent').innerHTML = highlightGherkin(content);
             new bootstrap.Modal(document.getElementById('featureModal')).show();
+        }
+        
+        function highlightGherkin(content) {
+            if (!content) return '<div class="text-muted">No content available</div>';
+            
+            // Gherkin keywords
+            const keywords = [
+                'Feature:', 'Background:', 'Scenario:', 'Scenario Outline:', 'Given', 'When', 'Then', 'And', 'But',
+                'Examples:', 'Example:', '|', '@', '#', '"""', '```'
+            ];
+            
+            // Split content into lines
+            const lines = content.split('\n');
+            let highlightedContent = '';
+            let inTable = false;
+            let inCodeBlock = false;
+            let inFeature = false;
+            let inScenario = false;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmedLine = line.trim();
+                
+                // Skip empty lines
+                if (trimmedLine === '') {
+                    highlightedContent += '<br>';
+                    continue;
+                }
+                
+                // Handle comments
+                if (trimmedLine.startsWith('#')) {
+                    highlightedContent += '<div class="gherkin-comment">' + escapeHtml(line) + '</div>';
+                    continue;
+                }
+                
+                // Handle Feature
+                if (trimmedLine.startsWith('Feature:')) {
+                    inFeature = true;
+                    highlightedContent += '<div class="gherkin-feature">';
+                    highlightedContent += highlightLine(line, keywords);
+                    highlightedContent += '</div>';
+                    continue;
+                }
+                
+                // Handle Scenario/Scenario Outline
+                if (trimmedLine.startsWith('Scenario') || trimmedLine.startsWith('Background:')) {
+                    inScenario = true;
+                    highlightedContent += '<div class="gherkin-scenario">';
+                    highlightedContent += highlightLine(line, keywords);
+                    highlightedContent += '</div>';
+                    continue;
+                }
+                
+                // Handle Examples
+                if (trimmedLine.startsWith('Examples:') || trimmedLine.startsWith('Example:')) {
+                    highlightedContent += '<div class="gherkin-examples">';
+                    highlightedContent += highlightLine(line, keywords);
+                    highlightedContent += '</div>';
+                    continue;
+                }
+                
+                // Handle table rows
+                if (trimmedLine.startsWith('|') && trimmedLine.endsWith('|')) {
+                    if (!inTable) {
+                        highlightedContent += '<table class="gherkin-table">';
+                        inTable = true;
+                    }
+                    highlightedContent += '<tr>';
+                    const cells = trimmedLine.split('|').slice(1, -1);
+                    cells.forEach(cell => {
+                        const cellContent = cell.trim();
+                        if (cellContent) {
+                            highlightedContent += '<td>' + highlightLine(cellContent, keywords) + '</td>';
+                        } else {
+                            highlightedContent += '<td></td>';
+                        }
+                    });
+                    highlightedContent += '</tr>';
+                    continue;
+                } else if (inTable) {
+                    highlightedContent += '</table>';
+                    inTable = false;
+                }
+                
+                // Handle code blocks
+                if (trimmedLine.startsWith('"""') || trimmedLine.startsWith('```')) {
+                    if (!inCodeBlock) {
+                        highlightedContent += '<pre class="bg-light p-2 rounded"><code>';
+                        inCodeBlock = true;
+                    } else {
+                        highlightedContent += '</code></pre>';
+                        inCodeBlock = false;
+                    }
+                    continue;
+                }
+                
+                // Regular lines
+                if (inCodeBlock) {
+                    highlightedContent += escapeHtml(line) + '<br>';
+                } else {
+                    highlightedContent += '<div class="gherkin-description">' + highlightLine(line, keywords) + '</div>';
+                }
+            }
+            
+            // Close any open table
+            if (inTable) {
+                highlightedContent += '</table>';
+            }
+            
+            return highlightedContent;
+        }
+        
+        function highlightLine(line, keywords) {
+            let highlightedLine = escapeHtml(line);
+            
+            // Highlight keywords
+            keywords.forEach(keyword => {
+                const regex = new RegExp('\\b' + keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+                highlightedLine = highlightedLine.replace(regex, '<span class="gherkin-keyword">' + keyword + '</span>');
+            });
+            
+            // Highlight values (quoted strings, numbers, etc.)
+            highlightedLine = highlightedLine.replace(/"([^"]*)"/g, '<span class="gherkin-value">"$1"</span>');
+            highlightedLine = highlightedLine.replace(/'([^']*)'/g, '<span class="gherkin-value">\'$1\'</span>');
+            highlightedLine = highlightedLine.replace(/\b(\d+)\b/g, '<span class="gherkin-value">$1</span>');
+            
+            return highlightedLine;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function copyFeatureContent() {
+            const content = document.getElementById('featureModalContent');
+            const text = content.textContent || content.innerText;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                // Show success feedback
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="bi bi-check-circle"></i> Copied!';
+                button.classList.remove('btn-outline-primary');
+                button.classList.add('btn-success');
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.classList.remove('btn-success');
+                    button.classList.add('btn-outline-primary');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy content: ', err);
+                alert('Failed to copy content to clipboard');
+            });
+        }
+        
+        function downloadFeatureFile() {
+            if (!currentFeatureContent) {
+                alert('No feature content available to download');
+                return;
+            }
+            
+            // Prepare filename
+            let fileName = currentFeatureFileName || 'feature';
+            
+            // Remove any existing extension and add .feature
+            if (fileName.includes('.')) {
+                fileName = fileName.substring(0, fileName.lastIndexOf('.')) + '.feature';
+            } else {
+                fileName = fileName + '.feature';
+            }
+            
+            // Clean filename (remove invalid characters)
+            fileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+            
+            // Create blob with the feature content
+            const blob = new Blob([currentFeatureContent], { type: 'text/plain;charset=utf-8' });
+            
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            
+            // Trigger download
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Clean up
+            window.URL.revokeObjectURL(url);
+            
+            // Show success feedback
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="bi bi-check-circle"></i> Downloaded!';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-success');
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.classList.remove('btn-outline-success');
+                button.classList.add('btn-success');
+            }, 2000);
         }
     </script>
 </body>
