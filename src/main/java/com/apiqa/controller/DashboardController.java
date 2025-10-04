@@ -3,6 +3,7 @@ package com.apiqa.controller;
 import com.apiqa.model.ApiSpec;
 import com.apiqa.model.TestRun;
 import com.apiqa.model.TestExecution;
+import com.apiqa.model.FeatureFile;
 import com.apiqa.dto.TestExecutionDetailsDto;
 import com.apiqa.service.ApiQaService;
 import com.apiqa.service.TestExecutionService;
@@ -205,6 +206,28 @@ public class DashboardController {
             }
         } catch (Exception e) {
             return "redirect:/test-runs/" + id + "?error=Failed to send email: " + e.getMessage();
+        }
+    }
+    
+    @GetMapping("/api/feature-content/{id}")
+    @ResponseBody
+    public ResponseEntity<String> getFeatureContent(@PathVariable Long id) {
+        try {
+            Optional<FeatureFile> featureOpt = apiQaService.getFeatureFileById(id);
+            if (featureOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            FeatureFile feature = featureOpt.get();
+            String content = feature.getContent();
+            
+            if (content == null || content.trim().isEmpty()) {
+                return ResponseEntity.ok("No content available for this feature file.");
+            }
+            
+            return ResponseEntity.ok(content);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error retrieving feature content: " + e.getMessage());
         }
     }
 }

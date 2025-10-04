@@ -17,9 +17,6 @@ public class ApiSpec {
     private String name;
     
     @Column(columnDefinition = "TEXT")
-    private String description;
-    
-    @Column(columnDefinition = "TEXT")
     private String openApiYaml;
     
     @Column(nullable = false)
@@ -27,9 +24,6 @@ public class ApiSpec {
     
     @Column(nullable = false)
     private LocalDateTime uploadedAt;
-    
-    @Column(nullable = false)
-    private String uploadedBy;
     
     @OneToMany(mappedBy = "apiSpec", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<FeatureFile> featureFiles;
@@ -43,12 +37,10 @@ public class ApiSpec {
         this.testRuns = new ArrayList<>();
     }
     
-    public ApiSpec(String name, String description, String openApiYaml, String version, String uploadedBy) {
+    public ApiSpec(String name, String openApiYaml, String version) {
         this.name = name;
-        this.description = description;
         this.openApiYaml = openApiYaml;
         this.version = version;
-        this.uploadedBy = uploadedBy;
         this.uploadedAt = LocalDateTime.now();
         this.featureFiles = new ArrayList<>();
         this.testRuns = new ArrayList<>();
@@ -69,14 +61,6 @@ public class ApiSpec {
     
     public void setName(String name) {
         this.name = name;
-    }
-    
-    public String getDescription() {
-        return description;
-    }
-    
-    public void setDescription(String description) {
-        this.description = description;
     }
     
     public String getOpenApiYaml() {
@@ -101,14 +85,6 @@ public class ApiSpec {
     
     public void setUploadedAt(LocalDateTime uploadedAt) {
         this.uploadedAt = uploadedAt;
-    }
-    
-    public String getUploadedBy() {
-        return uploadedBy;
-    }
-    
-    public void setUploadedBy(String uploadedBy) {
-        this.uploadedBy = uploadedBy;
     }
     
     public List<FeatureFile> getFeatureFiles() {

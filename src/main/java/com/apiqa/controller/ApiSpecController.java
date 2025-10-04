@@ -35,10 +35,7 @@ public class ApiSpecController {
         try {
             ApiSpec spec = apiQaService.uploadApiSpec(
                     request.getName(),
-                    request.getDescription(),
-                    request.getOpenApiYaml(),
-                    request.getVersion(),
-                    request.getUploadedBy()
+                    request.getOpenApiYaml()
             );
             return ResponseEntity.ok(spec);
         } catch (Exception e) {
@@ -48,20 +45,14 @@ public class ApiSpecController {
     
     @PostMapping(value = "/form", consumes = {"application/x-www-form-urlencoded", "multipart/form-data"})
     public ResponseEntity<String> uploadSpecForm(@RequestParam String name,
-                                               @RequestParam(required = false) String description,
-                                               @RequestParam String openApiYaml,
-                                               @RequestParam String version,
-                                               @RequestParam String uploadedBy) {
+                                               @RequestParam String openApiYaml) {
         try {
             System.out.println("Received upload request:");
             System.out.println("Name: " + name);
-            System.out.println("Description: " + description);
-            System.out.println("Version: " + version);
-            System.out.println("UploadedBy: " + uploadedBy);
             System.out.println("OpenAPI YAML length: " + (openApiYaml != null ? openApiYaml.length() : "null"));
             System.out.println("OpenAPI YAML preview: " + (openApiYaml != null ? openApiYaml.substring(0, Math.min(200, openApiYaml.length())) : "null"));
             
-            ApiSpec spec = apiQaService.uploadApiSpec(name, description, openApiYaml, version, uploadedBy);
+            ApiSpec spec = apiQaService.uploadApiSpec(name, openApiYaml);
             
             // Automatically generate tests after successful upload
             try {
@@ -131,25 +122,13 @@ public class ApiSpecController {
     
     public static class ApiSpecRequest {
         private String name;
-        private String description;
         private String openApiYaml;
-        private String version;
-        private String uploadedBy;
         
         // Getters and Setters
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
         
-        public String getDescription() { return description; }
-        public void setDescription(String description) { this.description = description; }
-        
         public String getOpenApiYaml() { return openApiYaml; }
         public void setOpenApiYaml(String openApiYaml) { this.openApiYaml = openApiYaml; }
-        
-        public String getVersion() { return version; }
-        public void setVersion(String version) { this.version = version; }
-        
-        public String getUploadedBy() { return uploadedBy; }
-        public void setUploadedBy(String uploadedBy) { this.uploadedBy = uploadedBy; }
     }
 }

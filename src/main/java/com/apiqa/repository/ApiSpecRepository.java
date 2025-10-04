@@ -14,8 +14,6 @@ public interface ApiSpecRepository extends JpaRepository<ApiSpec, Long> {
     
     List<ApiSpec> findByNameContainingIgnoreCase(String name);
     
-    List<ApiSpec> findByUploadedBy(String uploadedBy);
-    
     @Query("SELECT a FROM ApiSpec a ORDER BY a.uploadedAt DESC")
     List<ApiSpec> findAllOrderByUploadedAtDesc();
     

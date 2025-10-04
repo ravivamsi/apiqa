@@ -5,6 +5,9 @@ import com.apiqa.repository.ApiSpecRepository;
 import com.apiqa.repository.FeatureFileRepository;
 import com.apiqa.repository.TestRunRepository;
 import com.apiqa.repository.TestScenarioRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -38,9 +41,31 @@ public class ApiQaService {
     @Autowired
     private TestExecutionService testExecutionService;
     
-    public ApiSpec uploadApiSpec(String name, String description, String openApiYaml, String version, String uploadedBy) {
-        ApiSpec apiSpec = new ApiSpec(name, description, openApiYaml, version, uploadedBy);
+    public ApiSpec uploadApiSpec(String name, String openApiYaml) {
+        // Extract version from OpenAPI YAML
+        String version = extractVersionFromYaml(openApiYaml);
+        ApiSpec apiSpec = new ApiSpec(name, openApiYaml, version);
         return apiSpecRepository.save(apiSpec);
+    }
+    
+    private String extractVersionFromYaml(String openApiYaml) {
+        try {
+            // Parse the YAML to extract version
+            ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+            JsonNode rootNode = yamlMapper.readTree(openApiYaml);
+            
+            // Try to get version from info.version
+            JsonNode infoNode = rootNode.get("info");
+            if (infoNode != null && infoNode.has("version")) {
+                return infoNode.get("version").asText();
+            }
+            
+            // Fallback to default version if not found
+            return "1.0.0";
+        } catch (Exception e) {
+            System.err.println("Failed to extract version from YAML: " + e.getMessage());
+            return "1.0.0"; // Default fallback
+        }
     }
     
     public List<FeatureFile> generateFeatureFiles(Long apiSpecId) {
@@ -195,5 +220,9 @@ public class ApiQaService {
     
     public void deleteTestRun(Long id) {
         testRunRepository.deleteById(id);
+    }
+    
+    public Optional<FeatureFile> getFeatureFileById(Long id) {
+        return featureFileRepository.findById(id);
     }
 }

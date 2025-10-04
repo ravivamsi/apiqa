@@ -95,8 +95,6 @@
                                         <tr>
                                             <th>Name</th>
                                             <th>Version</th>
-                                            <th>Description</th>
-                                            <th>Uploaded By</th>
                                             <th>Uploaded At</th>
                                             <th>Actions</th>
                                         </tr>
@@ -109,8 +107,6 @@
                                             <td>
                                                 <span class="badge bg-secondary" th:text="${spec.version}">v1.0.0</span>
                                             </td>
-                                            <td th:text="${spec.description}">Description</td>
-                                            <td th:text="${spec.uploadedBy}">User</td>
                                             <td th:text="${#temporals.format(spec.uploadedAt, 'yyyy-MM-dd HH:mm')}">2023-01-01 12:00</td>
                                             <td>
                                                 <div class="btn-group" role="group">
@@ -158,21 +154,10 @@
                                         <input type="text" class="form-control" id="name" name="name" required>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="description" class="form-label">Description</label>
-                                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="version" class="form-label">Version</label>
-                                        <input type="text" class="form-control" id="version" name="version" value="1.0.0" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="uploadedBy" class="form-label">Uploaded By</label>
-                                        <input type="text" class="form-control" id="uploadedBy" name="uploadedBy" required>
-                                    </div>
-                                    <div class="mb-3">
                                         <label for="openApiYaml" class="form-label">OpenAPI YAML</label>
                                         <textarea class="form-control" id="openApiYaml" name="openApiYaml" rows="15" 
                                                   placeholder="Paste your OpenAPI YAML specification here..." required></textarea>
+                                        <div class="form-text">Version will be automatically extracted from the YAML file.</div>
                                     </div>
                                 </div>
                                 <div class="modal-footer">
@@ -204,9 +189,6 @@
             // Create form data as URL-encoded string
             const formData = new URLSearchParams();
             formData.append('name', form.name.value);
-            formData.append('description', form.description.value);
-            formData.append('version', form.version.value);
-            formData.append('uploadedBy', form.uploadedBy.value);
             formData.append('openApiYaml', form.openApiYaml.value);
             
             fetch('/api/specs/form', {

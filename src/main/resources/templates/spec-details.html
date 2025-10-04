@@ -42,17 +42,17 @@
         }
         
         .gherkin-keyword {
-            color: #ffc107;
+            color: #2c3e50;
             font-weight: bold;
-            background-color: rgba(255, 193, 7, 0.1);
+            background-color: rgba(44, 62, 80, 0.1);
             padding: 2px 4px;
             border-radius: 3px;
         }
         
         .gherkin-value {
-            color: #28a745;
+            color: #27ae60;
             font-weight: bold;
-            background-color: rgba(40, 167, 69, 0.1);
+            background-color: rgba(39, 174, 96, 0.1);
             padding: 2px 4px;
             border-radius: 3px;
         }
@@ -92,21 +92,21 @@
             margin: 15px 0;
             padding: 10px;
             background-color: #f8f9fa;
-            border-left: 4px solid #007bff;
+            border-left: 4px solid #2c3e50;
         }
         
         .gherkin-scenario {
             margin: 10px 0;
             padding: 8px;
-            background-color: #fff3cd;
-            border-left: 4px solid #ffc107;
+            background-color: #f8f9fa;
+            border-left: 4px solid #2c3e50;
         }
         
         .gherkin-feature {
             margin: 10px 0;
             padding: 8px;
-            background-color: #d1ecf1;
-            border-left: 4px solid #17a2b8;
+            background-color: #f8f9fa;
+            border-left: 4px solid #2c3e50;
         }
     </style>
 </head>
@@ -188,12 +188,6 @@
                                         <span class="badge bg-secondary" th:text="${apiSpec.version}">v1.0.0</span>
                                     </dd>
                                     
-                                    <dt class="col-sm-3">Description:</dt>
-                                    <dd class="col-sm-9" th:text="${apiSpec.description}">Description</dd>
-                                    
-                                    <dt class="col-sm-3">Uploaded By:</dt>
-                                    <dd class="col-sm-9" th:text="${apiSpec.uploadedBy}">User</dd>
-                                    
                                     <dt class="col-sm-3">Uploaded At:</dt>
                                     <dd class="col-sm-9" th:text="${apiSpec.uploadedAt}">2023-01-01 12:00:00</dd>
                                 </dl>
@@ -254,8 +248,8 @@
                                                 <td>
                                                     <button type="button" class="btn btn-sm btn-outline-primary" 
                                                             th:data-file-name="${feature.fileName}"
-                                                            th:data-content="${feature.content}"
-                                                            onclick="viewFeature(this.dataset.fileName, this.dataset.content)">
+                                                            th:data-feature-id="${feature.id}"
+                                                            onclick="viewFeature(this.dataset.fileName, this.dataset.featureId)">
                                                         <i class="bi bi-eye"></i> View
                                                     </button>
                                                 </td>
@@ -487,30 +481,66 @@
         let currentFeatureContent = '';
         let currentFeatureFileName = '';
         
-        function viewFeature(fileName, content) {
+        function viewFeature(fileName, featureId) {
             currentFeatureFileName = fileName;
-            currentFeatureContent = content;
             document.getElementById('featureModalTitle').innerHTML = '<i class="bi bi-file-earmark-code"></i> ' + fileName;
-            document.getElementById('featureModalContent').innerHTML = highlightGherkin(content);
+            
+            // Show loading message
+            const contentElement = document.getElementById('featureModalContent');
+            contentElement.innerHTML = '<div class="text-center text-muted"><i class="bi bi-hourglass-split"></i> Loading feature content...</div>';
+            
+            // Show modal first
             new bootstrap.Modal(document.getElementById('featureModal')).show();
+            
+            // Fetch content via AJAX
+            fetch('/api/feature-content/' + featureId)
+                .then(response => response.text())
+                .then(content => {
+                    currentFeatureContent = content;
+                    console.log('Raw content length:', content.length);
+                    console.log('Raw content sample:', content.substring(0, 300));
+                    
+                    // Display as plain text without HTML highlighting
+                    let cleanContent = content;
+                    
+                    // Remove all HTML tags completely
+                    cleanContent = cleanContent.replace(/<[^>]*>/g, '');
+                    
+                    // Also handle HTML entities
+                    cleanContent = cleanContent.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+                    
+                    console.log('Clean content:', cleanContent.substring(0, 200));
+                    
+                    // Display as plain text in a pre-formatted block
+                    contentElement.innerHTML = '<pre class="gherkin-content" style="white-space: pre-wrap; font-family: monospace; background-color: #f8f9fa; padding: 1rem; border-radius: 0.375rem; border: 1px solid #dee2e6;">' + escapeHtml(cleanContent) + '</pre>';
+                })
+                .catch(error => {
+                    console.error('Error fetching feature content:', error);
+                    contentElement.innerHTML = '<div class="text-danger">Error loading feature content</div>';
+                });
+        }
+        
+        function stripHtmlTags(html) {
+            // Create a temporary div to parse HTML and extract text content
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            return tempDiv.textContent || tempDiv.innerText || '';
         }
         
         function highlightGherkin(content) {
             if (!content) return '<div class="text-muted">No content available</div>';
             
-            // Gherkin keywords
-            const keywords = [
-                'Feature:', 'Background:', 'Scenario:', 'Scenario Outline:', 'Given', 'When', 'Then', 'And', 'But',
-                'Examples:', 'Example:', '|', '@', '#', '"""', '```'
-            ];
+            // Check if content already contains HTML tags (already highlighted)
+            if (content.includes('<span class="gherkin-')) {
+                // Content is already highlighted, strip HTML and re-highlight properly
+                return stripHtmlAndHighlight(content);
+            }
             
             // Split content into lines
             const lines = content.split('\n');
             let highlightedContent = '';
             let inTable = false;
             let inCodeBlock = false;
-            let inFeature = false;
-            let inScenario = false;
             
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
@@ -530,18 +560,16 @@
                 
                 // Handle Feature
                 if (trimmedLine.startsWith('Feature:')) {
-                    inFeature = true;
                     highlightedContent += '<div class="gherkin-feature">';
-                    highlightedContent += highlightLine(line, keywords);
+                    highlightedContent += highlightLine(line);
                     highlightedContent += '</div>';
                     continue;
                 }
                 
                 // Handle Scenario/Scenario Outline
                 if (trimmedLine.startsWith('Scenario') || trimmedLine.startsWith('Background:')) {
-                    inScenario = true;
                     highlightedContent += '<div class="gherkin-scenario">';
-                    highlightedContent += highlightLine(line, keywords);
+                    highlightedContent += highlightLine(line);
                     highlightedContent += '</div>';
                     continue;
                 }
@@ -549,7 +577,7 @@
                 // Handle Examples
                 if (trimmedLine.startsWith('Examples:') || trimmedLine.startsWith('Example:')) {
                     highlightedContent += '<div class="gherkin-examples">';
-                    highlightedContent += highlightLine(line, keywords);
+                    highlightedContent += highlightLine(line);
                     highlightedContent += '</div>';
                     continue;
                 }
@@ -565,7 +593,7 @@
                     cells.forEach(cell => {
                         const cellContent = cell.trim();
                         if (cellContent) {
-                            highlightedContent += '<td>' + highlightLine(cellContent, keywords) + '</td>';
+                            highlightedContent += '<td>' + highlightLine(cellContent) + '</td>';
                         } else {
                             highlightedContent += '<td></td>';
                         }
@@ -593,7 +621,7 @@
                 if (inCodeBlock) {
                     highlightedContent += escapeHtml(line) + '<br>';
                 } else {
-                    highlightedContent += '<div class="gherkin-description">' + highlightLine(line, keywords) + '</div>';
+                    highlightedContent += '<div class="gherkin-description">' + highlightLine(line) + '</div>';
                 }
             }
             
@@ -605,21 +633,245 @@
             return highlightedContent;
         }
         
-        function highlightLine(line, keywords) {
-            let highlightedLine = escapeHtml(line);
+        function cleanAndHighlightContent(content) {
+            // First, strip all HTML tags to get clean text
+            const cleanContent = content.replace(/<[^>]*>/g, '');
             
-            // Highlight keywords
-            keywords.forEach(keyword => {
-                const regex = new RegExp('\\b' + keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
-                highlightedLine = highlightedLine.replace(regex, '<span class="gherkin-keyword">' + keyword + '</span>');
+            // Now apply proper highlighting to the clean content (avoid recursion)
+            return highlightGherkinContent(cleanContent);
+        }
+        
+        function stripHtmlAndHighlight(content) {
+            // Create a temporary div to parse HTML and extract text content
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            const cleanText = tempDiv.textContent || tempDiv.innerText || '';
+            
+            // Now apply proper highlighting to the clean text
+            return highlightGherkinContent(cleanText);
+        }
+        
+        function highlightGherkinContent(content) {
+            if (!content) return '<div class="text-muted">No content available</div>';
+            
+            console.log('Highlighting content:', content.substring(0, 100) + '...');
+            
+            // Split content into lines
+            const lines = content.split('\n');
+            let highlightedContent = '';
+            let inTable = false;
+            let inCodeBlock = false;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmedLine = line.trim();
+                
+                // Skip empty lines
+                if (trimmedLine === '') {
+                    highlightedContent += '<br>';
+                    continue;
+                }
+                
+                // Handle comments
+                if (trimmedLine.startsWith('#')) {
+                    highlightedContent += '<div class="gherkin-comment">' + escapeHtml(line) + '</div>';
+                    continue;
+                }
+                
+                // Handle Feature
+                if (trimmedLine.startsWith('Feature:')) {
+                    highlightedContent += '<div class="gherkin-feature">';
+                    highlightedContent += highlightLine(line);
+                    highlightedContent += '</div>';
+                    continue;
+                }
+                
+                // Handle Scenario/Scenario Outline
+                if (trimmedLine.startsWith('Scenario') || trimmedLine.startsWith('Background:')) {
+                    highlightedContent += '<div class="gherkin-scenario">';
+                    highlightedContent += highlightLine(line);
+                    highlightedContent += '</div>';
+                    continue;
+                }
+                
+                // Handle Examples
+                if (trimmedLine.startsWith('Examples:') || trimmedLine.startsWith('Example:')) {
+                    highlightedContent += '<div class="gherkin-examples">';
+                    highlightedContent += highlightLine(line);
+                    highlightedContent += '</div>';
+                    continue;
+                }
+                
+                // Handle table rows
+                if (trimmedLine.startsWith('|') && trimmedLine.endsWith('|')) {
+                    if (!inTable) {
+                        highlightedContent += '<table class="gherkin-table">';
+                        inTable = true;
+                    }
+                    highlightedContent += '<tr>';
+                    const cells = trimmedLine.split('|').slice(1, -1);
+                    cells.forEach(cell => {
+                        const cellContent = cell.trim();
+                        if (cellContent) {
+                            highlightedContent += '<td>' + highlightLine(cellContent) + '</td>';
+                        } else {
+                            highlightedContent += '<td></td>';
+                        }
+                    });
+                    highlightedContent += '</tr>';
+                    continue;
+                } else if (inTable) {
+                    highlightedContent += '</table>';
+                    inTable = false;
+                }
+                
+                // Handle code blocks
+                if (trimmedLine.startsWith('"""') || trimmedLine.startsWith('```')) {
+                    if (!inCodeBlock) {
+                        highlightedContent += '<pre class="bg-light p-2 rounded"><code>';
+                        inCodeBlock = true;
+                    } else {
+                        highlightedContent += '</code></pre>';
+                        inCodeBlock = false;
+                    }
+                    continue;
+                }
+                
+                // Regular lines
+                if (inCodeBlock) {
+                    highlightedContent += escapeHtml(line) + '<br>';
+                } else {
+                    highlightedContent += '<div class="gherkin-description">' + highlightLine(line) + '</div>';
+                }
+            }
+            
+            // Close any open table
+            if (inTable) {
+                highlightedContent += '</table>';
+            }
+            
+            console.log('Highlighted content:', highlightedContent.substring(0, 200) + '...');
+            return highlightedContent;
+        }
+        
+        function formatHighlightedContent(content) {
+            // Split content into lines
+            const lines = content.split('\n');
+            let formattedContent = '';
+            let inTable = false;
+            let inCodeBlock = false;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmedLine = line.trim();
+                
+                // Skip empty lines
+                if (trimmedLine === '') {
+                    formattedContent += '<br>';
+                    continue;
+                }
+                
+                // Check if line starts with Feature:
+                if (trimmedLine.includes('Feature:')) {
+                    formattedContent += '<div class="gherkin-feature">' + line + '</div>';
+                    continue;
+                }
+                
+                // Check if line starts with Scenario or Background:
+                if (trimmedLine.includes('Scenario') || trimmedLine.includes('Background:')) {
+                    formattedContent += '<div class="gherkin-scenario">' + line + '</div>';
+                    continue;
+                }
+                
+                // Check if line starts with Examples:
+                if (trimmedLine.includes('Examples:') || trimmedLine.includes('Example:')) {
+                    formattedContent += '<div class="gherkin-examples">' + line + '</div>';
+                    continue;
+                }
+                
+                // Handle table rows
+                if (trimmedLine.startsWith('|') && trimmedLine.endsWith('|')) {
+                    if (!inTable) {
+                        formattedContent += '<table class="gherkin-table">';
+                        inTable = true;
+                    }
+                    formattedContent += '<tr><td>' + line.replace(/\|/g, '</td><td>') + '</td></tr>';
+                    continue;
+                } else if (inTable) {
+                    formattedContent += '</table>';
+                    inTable = false;
+                }
+                
+                // Regular lines
+                formattedContent += '<div class="gherkin-description">' + line + '</div>';
+            }
+            
+            // Close any open table
+            if (inTable) {
+                formattedContent += '</table>';
+            }
+            
+            return formattedContent;
+        }
+        
+        function highlightLine(line) {
+            // Don't escape HTML first - we'll handle it differently
+            let highlightedLine = line;
+            
+            // Highlight Gherkin keywords
+            const gherkinKeywords = [
+                'Feature:', 'Background:', 'Scenario:', 'Scenario Outline:', 
+                'Examples:', 'Example:', 'Given', 'When', 'Then', 'And', 'But'
+            ];
+            
+            // Process each keyword
+            gherkinKeywords.forEach(keyword => {
+                // Create regex pattern for the keyword
+                let pattern;
+                if (keyword.endsWith(':')) {
+                    // For keywords ending with colon (Feature:, Scenario:, etc.)
+                    pattern = new RegExp('\\b(' + keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+                } else {
+                    // For step keywords (Given, When, Then, etc.)
+                    pattern = new RegExp('(^|\\s+)(' + keyword + ')(?=\\s|$)', 'gi');
+                }
+                
+                // Replace with highlighted version
+                if (keyword.endsWith(':')) {
+                    highlightedLine = highlightedLine.replace(pattern, '<span class="gherkin-keyword">$1</span>');
+                } else {
+                    highlightedLine = highlightedLine.replace(pattern, '$1<span class="gherkin-keyword">$2</span>');
+                }
             });
             
-            // Highlight values (quoted strings, numbers, etc.)
+            // Highlight quoted strings
             highlightedLine = highlightedLine.replace(/"([^"]*)"/g, '<span class="gherkin-value">"$1"</span>');
             highlightedLine = highlightedLine.replace(/'([^']*)'/g, '<span class="gherkin-value">\'$1\'</span>');
+            
+            // Highlight numbers
             highlightedLine = highlightedLine.replace(/\b(\d+)\b/g, '<span class="gherkin-value">$1</span>');
             
+            // Highlight table separators
+            highlightedLine = highlightedLine.replace(/\|/g, '<span class="gherkin-keyword">|</span>');
+            
+            // Now escape any remaining HTML that's not our spans
+            highlightedLine = escapeHtmlExceptSpans(highlightedLine);
+            
             return highlightedLine;
+        }
+        
+        function escapeHtmlExceptSpans(text) {
+            // Split by our span tags to preserve them
+            const parts = text.split(/(<span class="gherkin-[^"]*">[^<]*<\/span>)/g);
+            
+            return parts.map(part => {
+                // If it's already a span tag, keep it as is
+                if (part.match(/^<span class="gherkin-[^"]*">[^<]*<\/span>$/)) {
+                    return part;
+                }
+                // Otherwise escape HTML
+                return escapeHtml(part);
+            }).join('');
         }
         
         function escapeHtml(text) {
@@ -629,10 +881,18 @@
         }
         
         function copyFeatureContent() {
-            const content = document.getElementById('featureModalContent');
-            const text = content.textContent || content.innerText;
+            // Get the clean content (without HTML tags) for copying
+            let cleanContent = currentFeatureContent || '';
             
-            navigator.clipboard.writeText(text).then(() => {
+            // Remove all HTML tags completely
+            cleanContent = cleanContent.replace(/<[^>]*>/g, '');
+            
+            // Also handle HTML entities
+            cleanContent = cleanContent.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+            
+            console.log('Copying clean content:', cleanContent.substring(0, 100));
+            
+            navigator.clipboard.writeText(cleanContent).then(() => {
                 // Show success feedback
                 const button = event.target;
                 const originalText = button.innerHTML;
@@ -657,6 +917,15 @@
                 return;
             }
             
+            // Clean the content for download (remove HTML tags)
+            let cleanContent = currentFeatureContent || '';
+            
+            // Remove all HTML tags completely
+            cleanContent = cleanContent.replace(/<[^>]*>/g, '');
+            
+            // Also handle HTML entities
+            cleanContent = cleanContent.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+            
             // Prepare filename
             let fileName = currentFeatureFileName || 'feature';
             
@@ -670,8 +939,8 @@
             // Clean filename (remove invalid characters)
             fileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
             
-            // Create blob with the feature content
-            const blob = new Blob([currentFeatureContent], { type: 'text/plain;charset=utf-8' });
+            // Create blob with the clean feature content
+            const blob = new Blob([cleanContent], { type: 'text/plain;charset=utf-8' });
             
             // Create download link
             const url = window.URL.createObjectURL(blob);
@@ -699,6 +968,26 @@
                 button.classList.remove('btn-outline-success');
                 button.classList.add('btn-success');
             }, 2000);
+        }
+        
+        // Debug function to test content processing
+        function debugContent(content) {
+            console.log('=== DEBUG CONTENT ===');
+            console.log('Original length:', content.length);
+            console.log('Contains <span:', content.includes('<span'));
+            console.log('Contains &lt;span:', content.includes('&lt;span'));
+            console.log('First 500 chars:', content.substring(0, 500));
+            
+            // Test HTML entity decoding
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            const decoded = tempDiv.textContent || tempDiv.innerText || content;
+            console.log('After HTML decode:', decoded.substring(0, 500));
+            
+            // Test HTML tag removal
+            const cleaned = decoded.replace(/<[^>]*>/g, '');
+            console.log('After tag removal:', cleaned.substring(0, 500));
+            console.log('=== END DEBUG ===');
         }
     </script>
 </body>
