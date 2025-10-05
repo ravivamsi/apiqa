@@ -3,6 +3,7 @@ package com.apiqa.controller;
 import com.apiqa.model.*;
 import com.apiqa.service.AdminService;
 import com.apiqa.service.ApiQaService;
+import com.apiqa.service.EnvironmentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -22,17 +23,22 @@ public class AdminController {
     @Autowired
     private ApiQaService apiQaService;
     
+    @Autowired
+    private EnvironmentService environmentService;
+    
     @GetMapping
     public String adminDashboard(Model model) {
         List<TestSuite> testSuites = adminService.getAllTestSuites();
         List<CustomEndpoint> customEndpoints = adminService.getAllCustomEndpoints();
         List<TestCase> testCases = adminService.getAllTestCases();
         List<ApiSpec> apiSpecs = apiQaService.getAllApiSpecs();
+        List<Environment> environments = environmentService.getAllEnvironments();
         
         model.addAttribute("testSuites", testSuites);
         model.addAttribute("customEndpoints", customEndpoints);
         model.addAttribute("testCases", testCases);
         model.addAttribute("apiSpecs", apiSpecs);
+        model.addAttribute("environments", environments);
         
         return "admin";
     }
@@ -329,6 +335,102 @@ public class AdminController {
             return ResponseEntity.ok("Test case steps reordered successfully");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Failed to reorder test case steps: " + e.getMessage());
+        }
+    }
+    
+    // Environment Management
+    @PostMapping("/environments")
+    public String createEnvironment(@RequestParam String name, 
+                                   @RequestParam(required = false) String description,
+                                   @RequestParam(required = false) String createdByName) {
+        try {
+            String creatorName = createdByName != null && !createdByName.trim().isEmpty() ? createdByName : "Admin";
+            environmentService.createEnvironment(name, description, creatorName);
+            return "redirect:/admin?success=Environment created successfully";
+        } catch (Exception e) {
+            return "redirect:/admin?error=Failed to create environment: " + e.getMessage();
+        }
+    }
+    
+    @PostMapping("/environments/{id}")
+    public String updateEnvironment(@PathVariable Long id,
+                                   @RequestParam String name,
+                                   @RequestParam(required = false) String description) {
+        try {
+            environmentService.updateEnvironment(id, name, description);
+            return "redirect:/admin?success=Environment updated successfully";
+        } catch (Exception e) {
+            return "redirect:/admin?error=Failed to update environment: " + e.getMessage();
+        }
+    }
+    
+    @PostMapping("/environments/{id}/delete")
+    public String deleteEnvironment(@PathVariable Long id) {
+        try {
+            environmentService.deleteEnvironment(id);
+            return "redirect:/admin?success=Environment deleted successfully";
+        } catch (Exception e) {
+            return "redirect:/admin?error=Failed to delete environment: " + e.getMessage();
+        }
+    }
+    
+    // Environment Variable Management
+    @PostMapping("/environments/{id}/variables")
+    public String addEnvironmentVariable(@PathVariable("id") Long environmentId,
+                                        @RequestParam String key,
+                                        @RequestParam String value,
+                                        @RequestParam(required = false) String description,
+                                        @RequestParam(required = false) String variableType,
+                                        @RequestParam(required = false) String isSensitiveParam) {
+        try {
+            // Handle Boolean parsing manually
+            Boolean isSensitive = false;
+            if (isSensitiveParam != null && !isSensitiveParam.isEmpty()) {
+                isSensitive = Boolean.parseBoolean(isSensitiveParam) || "true".equalsIgnoreCase(isSensitiveParam);
+            }
+            
+            System.out.println("Adding variable - environmentId: " + environmentId + ", key: " + key + ", value: " + value);
+            environmentService.addVariable(environmentId, key, value, description, variableType, isSensitive);
+            return "redirect:/admin?success=Environment variable added successfully";
+        } catch (Exception e) {
+            System.err.println("Error adding environment variable: " + e.getMessage());
+            e.printStackTrace();
+            return "redirect:/admin?error=Failed to add environment variable: " + e.getMessage();
+        }
+    }
+    
+    @PostMapping("/environments/variables/{id}")
+    public String updateEnvironmentVariable(@PathVariable Long id,
+                                            @RequestParam String value,
+                                            @RequestParam(required = false) String description,
+                                            @RequestParam(required = false) String variableType,
+                                            @RequestParam(required = false, defaultValue = "false") Boolean isSensitive) {
+        try {
+            environmentService.updateVariable(id, value, description, variableType, isSensitive);
+            return "redirect:/admin?success=Environment variable updated successfully";
+        } catch (Exception e) {
+            return "redirect:/admin?error=Failed to update environment variable: " + e.getMessage();
+        }
+    }
+    
+    @PostMapping("/environments/variables/{id}/delete")
+    public String deleteEnvironmentVariable(@PathVariable Long id) {
+        try {
+            environmentService.deleteVariable(id);
+            return "redirect:/admin?success=Environment variable deleted successfully";
+        } catch (Exception e) {
+            return "redirect:/admin?error=Failed to delete environment variable: " + e.getMessage();
+        }
+    }
+    
+    @GetMapping("/api/environments/{id}/variables")
+    @ResponseBody
+    public ResponseEntity<List<EnvironmentVariable>> getEnvironmentVariables(@PathVariable Long id) {
+        try {
+            List<EnvironmentVariable> variables = environmentService.getVariablesByEnvironmentId(id);
+            return ResponseEntity.ok(variables);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
         }
     }
 }

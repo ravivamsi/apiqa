@@ -301,37 +301,415 @@ public class OpenApiParserService {
     
     private FeatureFile generateIntegrationTests(OpenAPI openAPI, ApiSpec apiSpec) {
         StringBuilder content = new StringBuilder();
-        content.append("Feature: Integration Tests - End-to-End Workflows\n");
+        content.append("Feature: Integration Tests - CRUD Operations with Verification\n");
         content.append("  As a QA Engineer\n");
-        content.append("  I want to test complete user workflows\n");
-        content.append("  So that I can ensure the API works end-to-end\n\n");
+        content.append("  I want to test complete CRUD workflows with verification\n");
+        content.append("  So that I can ensure data integrity and proper API behavior\n\n");
+        
+        String baseUrl = getBaseUrl(openAPI);
+        content.append("  Background:\n");
+        content.append("    Given the API base URL is \"").append(baseUrl).append("\"\n");
+        content.append("    And the Content-Type is \"application/json\"\n\n");
         
         List<TestScenario> scenarios = new ArrayList<>();
         
-        // Generate workflow scenarios based on common patterns
-        content.append("  Scenario: Complete CRUD Workflow\n");
-        content.append("    Given the API is available\n");
-        content.append("    And I have valid authentication credentials\n");
-        content.append("    When I create a new resource\n");
-        content.append("    Then the resource should be created successfully\n");
-        content.append("    When I retrieve the created resource\n");
-        content.append("    Then the resource should be returned correctly\n");
-        content.append("    When I update the resource\n");
-        content.append("    Then the resource should be updated successfully\n");
-        content.append("    When I delete the resource\n");
-        content.append("    Then the resource should be deleted successfully\n\n");
-        
-        content.append("  Scenario: Authentication and Authorization Flow\n");
-        content.append("    Given the API is available\n");
-        content.append("    When I authenticate with valid credentials\n");
-        content.append("    Then I should receive a valid token\n");
-        content.append("    When I make an authenticated request\n");
-        content.append("    Then the request should be authorized\n\n");
+        if (openAPI.getPaths() != null) {
+            for (Map.Entry<String, PathItem> pathEntry : openAPI.getPaths().entrySet()) {
+                String path = pathEntry.getKey();
+                PathItem pathItem = pathEntry.getValue();
+                
+                // Rule 1: POST endpoints - Create and verify
+                if (pathItem.getPost() != null) {
+                    generatePostIntegrationTests(content, scenarios, path, pathItem.getPost(), pathItem.getGet());
+                }
+                
+                // Rule 2: PUT/PATCH endpoints - Update and verify
+                if (pathItem.getPut() != null) {
+                    generatePutIntegrationTests(content, scenarios, path, pathItem.getPut(), pathItem.getGet());
+                }
+                if (pathItem.getPatch() != null) {
+                    generatePatchIntegrationTests(content, scenarios, path, pathItem.getPatch(), pathItem.getGet());
+                }
+                
+                // Rule 3: DELETE endpoints - Delete and verify
+                if (pathItem.getDelete() != null) {
+                    generateDeleteIntegrationTests(content, scenarios, path, pathItem.getDelete(), pathItem.getGet());
+                }
+                
+                // Rule 4: GET endpoints with filters
+                if (pathItem.getGet() != null) {
+                    generateGetFilterTests(content, scenarios, path, pathItem.getGet());
+                }
+            }
+        }
         
         String fileName = apiSpec.getName().replaceAll("[^a-zA-Z0-9]", "_") + "_integration_tests.feature";
         FeatureFile featureFile = new FeatureFile(fileName, TestSuiteType.INTEGRATION, content.toString(), apiSpec);
         
+        // Set the FeatureFile on all scenarios
+        for (TestScenario scenario : scenarios) {
+            scenario.setFeatureFile(featureFile);
+        }
+        
+        featureFile.setTestScenarios(scenarios);
+        
         return featureFile;
+    }
+    
+    private void generatePostIntegrationTests(StringBuilder content, List<TestScenario> scenarios, String path, Operation postOp, Operation getOp) {
+        String resourceName = extractResourceName(path);
+        String scenarioName = "Create " + resourceName + " and verify creation";
+        
+        content.append("  @integration @create @").append(resourceName.toLowerCase()).append("\n");
+        content.append("  Scenario: ").append(scenarioName).append("\n");
+        content.append("    Given I want to create a new ").append(resourceName).append("\n");
+        
+        // Generate POST request body based on schema
+        String requestBody = generateRequestBody(postOp);
+        content.append("    When I send a POST request to \"").append(path).append("\" with body:\n");
+        content.append("      \"\"\"\n");
+        content.append(requestBody);
+        content.append("\n      \"\"\"\n");
+        content.append("    Then the response status should be 201 or 200\n");
+        content.append("    And the response should contain an \"id\" field\n");
+        content.append("    And I store the response \"id\" as \"created").append(resourceName).append("Id\"\n\n");
+        
+        // Generate GET verification
+        if (getOp != null) {
+            String getPath = generateGetPath(path, postOp);
+            content.append("    When I send a GET request to \"").append(getPath).append("\"\n");
+            content.append("    Then the response status should be 200\n");
+            content.append("    And the response should contain the created ").append(resourceName).append(" data\n");
+            content.append("    And the response \"id\" should equal {{created").append(resourceName).append("Id}}\n\n");
+        }
+        
+        // Create TestScenario object
+        TestScenario scenario = new TestScenario();
+        scenario.setScenarioName(scenarioName);
+        scenario.setDescription("Integration test for creating " + resourceName + " with verification");
+        scenario.setHttpMethod("POST");
+        scenario.setEndpoint(path);
+        scenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(scenario);
+    }
+    
+    private void generatePutIntegrationTests(StringBuilder content, List<TestScenario> scenarios, String path, Operation putOp, Operation getOp) {
+        String resourceName = extractResourceName(path);
+        String scenarioName = "Update " + resourceName + " using PUT and verify update";
+        
+        content.append("  @integration @update @").append(resourceName.toLowerCase()).append("\n");
+        content.append("  Scenario: ").append(scenarioName).append("\n");
+        content.append("    Given I want to update an existing ").append(resourceName).append("\n");
+        content.append("    And I have a ").append(resourceName).append(" with ID 1\n");
+        
+        // Generate PUT request body
+        String requestBody = generateRequestBody(putOp);
+        content.append("    When I send a PUT request to \"").append(path).append("\" with body:\n");
+        content.append("      \"\"\"\n");
+        content.append(requestBody);
+        content.append("\n      \"\"\"\n");
+        content.append("    Then the response status should be 200\n");
+        content.append("    And the response should contain updated ").append(resourceName).append(" data\n\n");
+        
+        // Generate GET verification
+        if (getOp != null) {
+            String getPath = generateGetPath(path, putOp);
+            content.append("    When I send a GET request to \"").append(getPath).append("\"\n");
+            content.append("    Then the response status should be 200\n");
+            content.append("    And the response should contain the updated ").append(resourceName).append(" data\n");
+            content.append("    And the response \"id\" should equal 1\n\n");
+        }
+        
+        // Create TestScenario object
+        TestScenario scenario = new TestScenario();
+        scenario.setScenarioName(scenarioName);
+        scenario.setDescription("Integration test for updating " + resourceName + " with verification");
+        scenario.setHttpMethod("PUT");
+        scenario.setEndpoint(path);
+        scenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(scenario);
+    }
+    
+    private void generatePatchIntegrationTests(StringBuilder content, List<TestScenario> scenarios, String path, Operation patchOp, Operation getOp) {
+        String resourceName = extractResourceName(path);
+        String scenarioName = "Partially update " + resourceName + " using PATCH and verify update";
+        
+        content.append("  @integration @update @").append(resourceName.toLowerCase()).append("\n");
+        content.append("  Scenario: ").append(scenarioName).append("\n");
+        content.append("    Given I want to partially update an existing ").append(resourceName).append("\n");
+        content.append("    And I have a ").append(resourceName).append(" with ID 1\n");
+        
+        // Generate PATCH request body (partial update)
+        String requestBody = generatePartialRequestBody(patchOp);
+        content.append("    When I send a PATCH request to \"").append(path).append("\" with body:\n");
+        content.append("      \"\"\"\n");
+        content.append(requestBody);
+        content.append("\n      \"\"\"\n");
+        content.append("    Then the response status should be 200\n");
+        content.append("    And the response should contain updated ").append(resourceName).append(" data\n\n");
+        
+        // Generate GET verification
+        if (getOp != null) {
+            String getPath = generateGetPath(path, patchOp);
+            content.append("    When I send a GET request to \"").append(getPath).append("\"\n");
+            content.append("    Then the response status should be 200\n");
+            content.append("    And the response should contain the updated ").append(resourceName).append(" data\n");
+            content.append("    And the response \"id\" should equal 1\n\n");
+        }
+        
+        // Create TestScenario object
+        TestScenario scenario = new TestScenario();
+        scenario.setScenarioName(scenarioName);
+        scenario.setDescription("Integration test for partially updating " + resourceName + " with verification");
+        scenario.setHttpMethod("PATCH");
+        scenario.setEndpoint(path);
+        scenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(scenario);
+    }
+    
+    private void generateDeleteIntegrationTests(StringBuilder content, List<TestScenario> scenarios, String path, Operation deleteOp, Operation getOp) {
+        String resourceName = extractResourceName(path);
+        String scenarioName = "Delete " + resourceName + " and verify deletion";
+        
+        content.append("  @integration @delete @").append(resourceName.toLowerCase()).append("\n");
+        content.append("  Scenario: ").append(scenarioName).append("\n");
+        content.append("    Given I want to delete an existing ").append(resourceName).append("\n");
+        content.append("    And I have a ").append(resourceName).append(" with ID 1\n");
+        content.append("    When I send a DELETE request to \"").append(path).append("\"\n");
+        content.append("    Then the response status should be 200 or 204\n\n");
+        
+        // Generate GET verification for 404
+        if (getOp != null) {
+            String getPath = generateGetPath(path, deleteOp);
+            content.append("    When I send a GET request to \"").append(getPath).append("\"\n");
+            content.append("    Then the response status should be 404\n");
+            content.append("    And the response should not contain the deleted ").append(resourceName).append(" data\n\n");
+        }
+        
+        // Create TestScenario object
+        TestScenario scenario = new TestScenario();
+        scenario.setScenarioName(scenarioName);
+        scenario.setDescription("Integration test for deleting " + resourceName + " with verification");
+        scenario.setHttpMethod("DELETE");
+        scenario.setEndpoint(path);
+        scenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(scenario);
+    }
+    
+    private void generateGetFilterTests(StringBuilder content, List<TestScenario> scenarios, String path, Operation getOp) {
+        String resourceName = extractResourceName(path);
+        
+        // Test basic GET endpoint
+        content.append("  @integration @filters @").append(resourceName.toLowerCase()).append("\n");
+        content.append("  Scenario: Get all ").append(resourceName).append(" and verify response structure\n");
+        content.append("    Given I want to retrieve all ").append(resourceName).append("\n");
+        content.append("    When I send a GET request to \"").append(path).append("\"\n");
+        content.append("    Then the response status should be 200\n");
+        content.append("    And the response should be an array\n");
+        content.append("    And each item in the response should contain valid ").append(resourceName).append(" data\n\n");
+        
+        // Create TestScenario object for basic GET
+        TestScenario basicGetScenario = new TestScenario();
+        basicGetScenario.setScenarioName("Get all " + resourceName + " and verify response structure");
+        basicGetScenario.setDescription("Integration test for retrieving all " + resourceName);
+        basicGetScenario.setHttpMethod("GET");
+        basicGetScenario.setEndpoint(path);
+        basicGetScenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(basicGetScenario);
+        
+        // Test GET with ID parameter
+        if (path.contains("{") && path.contains("}")) {
+            content.append("  @integration @filters @").append(resourceName.toLowerCase()).append("\n");
+            content.append("  Scenario: Get ").append(resourceName).append(" by ID\n");
+            content.append("    Given I want to retrieve a specific ").append(resourceName).append("\n");
+            content.append("    When I send a GET request to \"").append(path).append("\"\n");
+            content.append("    Then the response status should be 200\n");
+            content.append("    And the response should contain valid ").append(resourceName).append(" data\n");
+            content.append("    And the response \"id\" should equal the requested ID\n\n");
+            
+            // Create TestScenario object for GET by ID
+            TestScenario getByIdScenario = new TestScenario();
+            getByIdScenario.setScenarioName("Get " + resourceName + " by ID");
+            getByIdScenario.setDescription("Integration test for retrieving " + resourceName + " by ID");
+            getByIdScenario.setHttpMethod("GET");
+            getByIdScenario.setEndpoint(path);
+            getByIdScenario.setCreatedAt(java.time.LocalDateTime.now());
+            scenarios.add(getByIdScenario);
+            
+            // Test invalid ID
+            content.append("  @integration @filters @").append(resourceName.toLowerCase()).append("\n");
+            content.append("  Scenario: Get ").append(resourceName).append(" with invalid ID should return 404\n");
+            content.append("    Given I want to retrieve a non-existent ").append(resourceName).append("\n");
+            content.append("    When I send a GET request to \"").append(path).append("\"\n");
+            content.append("    Then the response status should be 404\n\n");
+            
+            // Create TestScenario object for invalid ID
+            TestScenario invalidIdScenario = new TestScenario();
+            invalidIdScenario.setScenarioName("Get " + resourceName + " with invalid ID should return 404");
+            invalidIdScenario.setDescription("Integration test for retrieving " + resourceName + " with invalid ID");
+            invalidIdScenario.setHttpMethod("GET");
+            invalidIdScenario.setEndpoint(path);
+            invalidIdScenario.setCreatedAt(java.time.LocalDateTime.now());
+            scenarios.add(invalidIdScenario);
+        }
+        
+        // Test query parameters
+        if (getOp.getParameters() != null) {
+            for (io.swagger.v3.oas.models.parameters.Parameter param : getOp.getParameters()) {
+                if ("query".equals(param.getIn())) {
+                    generateQueryParameterTests(content, scenarios, path, resourceName, param);
+                }
+            }
+        }
+    }
+    
+    private void generateQueryParameterTests(StringBuilder content, List<TestScenario> scenarios, String path, String resourceName, io.swagger.v3.oas.models.parameters.Parameter param) {
+        String paramName = param.getName();
+        String paramType = param.getSchema() != null ? param.getSchema().getType() : "string";
+        
+        content.append("  @integration @filters @").append(resourceName.toLowerCase()).append("\n");
+        content.append("  Scenario: Get ").append(resourceName).append(" filtered by ").append(paramName).append("\n");
+        content.append("    Given I want to retrieve ").append(resourceName).append(" filtered by ").append(paramName).append("\n");
+        content.append("    When I send a GET request to \"").append(path).append("\" with query parameter \"").append(paramName).append("=1\"\n");
+        content.append("    Then the response status should be 200\n");
+        content.append("    And the response should be an array\n");
+        content.append("    And each item in the response should have \"").append(paramName).append("\" equal to 1\n\n");
+        
+        // Create TestScenario object for valid parameter
+        TestScenario validParamScenario = new TestScenario();
+        validParamScenario.setScenarioName("Get " + resourceName + " filtered by " + paramName);
+        validParamScenario.setDescription("Integration test for retrieving " + resourceName + " filtered by " + paramName);
+        validParamScenario.setHttpMethod("GET");
+        validParamScenario.setEndpoint(path);
+        validParamScenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(validParamScenario);
+        
+        // Test invalid parameter
+        content.append("  @integration @filters @").append(resourceName.toLowerCase()).append("\n");
+        content.append("  Scenario: Get ").append(resourceName).append(" with invalid ").append(paramName).append(" parameter\n");
+        content.append("    Given I want to retrieve ").append(resourceName).append(" with invalid ").append(paramName).append("\n");
+        content.append("    When I send a GET request to \"").append(path).append("\" with query parameter \"").append(paramName).append("=invalid\"\n");
+        content.append("    Then the response status should be 400\n\n");
+        
+        // Create TestScenario object for invalid parameter
+        TestScenario invalidParamScenario = new TestScenario();
+        invalidParamScenario.setScenarioName("Get " + resourceName + " with invalid " + paramName + " parameter");
+        invalidParamScenario.setDescription("Integration test for retrieving " + resourceName + " with invalid " + paramName);
+        invalidParamScenario.setHttpMethod("GET");
+        invalidParamScenario.setEndpoint(path);
+        invalidParamScenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(invalidParamScenario);
+    }
+    
+    private String extractResourceName(String path) {
+        // Extract resource name from path (e.g., /posts -> Posts, /users/{id} -> Users)
+        String[] parts = path.split("/");
+        for (String part : parts) {
+            if (!part.isEmpty() && !part.startsWith("{")) {
+                return part.substring(0, 1).toUpperCase() + part.substring(1);
+            }
+        }
+        return "Resource";
+    }
+    
+    private String generateRequestBody(Operation operation) {
+        if (operation.getRequestBody() != null && operation.getRequestBody().getContent() != null) {
+            Content content = operation.getRequestBody().getContent();
+            if (content.get("application/json") != null) {
+                Schema schema = content.get("application/json").getSchema();
+                return generateJsonFromSchema(schema);
+            }
+        }
+        return "{\n      \"id\": 1,\n      \"name\": \"Test Resource\",\n      \"description\": \"Test description\"\n    }";
+    }
+    
+    private String generatePartialRequestBody(Operation operation) {
+        if (operation.getRequestBody() != null && operation.getRequestBody().getContent() != null) {
+            Content content = operation.getRequestBody().getContent();
+            if (content.get("application/json") != null) {
+                Schema schema = content.get("application/json").getSchema();
+                return generatePartialJsonFromSchema(schema);
+            }
+        }
+        return "{\n      \"name\": \"Updated Test Resource\"\n    }";
+    }
+    
+    private String generateJsonFromSchema(Schema schema) {
+        if (schema == null) {
+            return "{\n      \"id\": 1,\n      \"name\": \"Test Resource\"\n    }";
+        }
+        
+        StringBuilder json = new StringBuilder("{\n");
+        if (schema.getProperties() != null) {
+            boolean first = true;
+            for (Object key : schema.getProperties().keySet()) {
+                if (!first) json.append(",\n");
+                json.append("      \"").append((String) key).append("\": ");
+                json.append(generateValueFromSchema((Schema) schema.getProperties().get(key)));
+                first = false;
+            }
+        } else {
+            json.append("      \"id\": 1,\n");
+            json.append("      \"name\": \"Test Resource\"");
+        }
+        json.append("\n    }");
+        return json.toString();
+    }
+    
+    private String generatePartialJsonFromSchema(Schema schema) {
+        if (schema == null) {
+            return "{\n      \"name\": \"Updated Test Resource\"\n    }";
+        }
+        
+        StringBuilder json = new StringBuilder("{\n");
+        if (schema.getProperties() != null) {
+            boolean first = true;
+            int count = 0;
+            for (Object key : schema.getProperties().keySet()) {
+                if (count >= 2) break; // Only include first 2 properties for partial update
+                if (!first) json.append(",\n");
+                json.append("      \"").append((String) key).append("\": ");
+                json.append(generateValueFromSchema((Schema) schema.getProperties().get(key)));
+                first = false;
+                count++;
+            }
+        } else {
+            json.append("      \"name\": \"Updated Test Resource\"");
+        }
+        json.append("\n    }");
+        return json.toString();
+    }
+    
+    private String generateValueFromSchema(Schema schema) {
+        if (schema == null) return "\"test\"";
+        
+        String type = schema.getType();
+        if (type == null) return "\"test\"";
+        
+        switch (type) {
+            case "string":
+                return "\"Test Value\"";
+            case "integer":
+                return "1";
+            case "number":
+                return "1.0";
+            case "boolean":
+                return "true";
+            case "array":
+                return "[]";
+            case "object":
+                return "{}";
+            default:
+                return "\"test\"";
+        }
+    }
+    
+    private String generateGetPath(String path, Operation operation) {
+        // Convert path with parameters to actual path
+        if (path.contains("{") && path.contains("}")) {
+            return path.replaceAll("\\{[^}]+\\}", "1");
+        }
+        return path;
     }
     
     private Map<String, Operation> getOperations(PathItem pathItem) {
@@ -678,4 +1056,5 @@ public class OpenApiParserService {
         return new TestScenario(scenarioName, description, httpMethod, endpoint, requestBody,
                 expectedResponseSchema, expectedHeaders, expectedStatusCode, testSteps, featureFile);
     }
+    
 }

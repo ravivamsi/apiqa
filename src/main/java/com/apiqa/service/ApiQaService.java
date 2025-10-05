@@ -93,24 +93,33 @@ public class ApiQaService {
         
         System.out.println("Existing tests deleted. Generating new tests...");
         
-        // Generate new feature files
-        List<FeatureFile> featureFiles = parserService.parseOpenApiSpec(apiSpec.getOpenApiYaml(), apiSpec);
-        
-        // Save each feature file with its test scenarios
-        for (FeatureFile featureFile : featureFiles) {
-            // Save the feature file first to get an ID
-            apiSpec.getFeatureFiles().add(featureFile);
-            apiSpecRepository.save(apiSpec);
+        try {
+            // Generate new feature files
+            List<FeatureFile> featureFiles = parserService.parseOpenApiSpec(apiSpec.getOpenApiYaml(), apiSpec);
+            System.out.println("Generated " + featureFiles.size() + " feature files");
             
-            // Now save test scenarios with the proper feature file reference
-            for (TestScenario scenario : featureFile.getTestScenarios()) {
-                scenario.setFeatureFile(featureFile);
-                testScenarioRepository.save(scenario);
+            // Save each feature file with its test scenarios
+            for (FeatureFile featureFile : featureFiles) {
+                System.out.println("Saving feature file: " + featureFile.getFileName());
+                // Save the feature file first to get an ID
+                apiSpec.getFeatureFiles().add(featureFile);
+                apiSpecRepository.save(apiSpec);
+                
+                // Now save test scenarios with the proper feature file reference
+                for (TestScenario scenario : featureFile.getTestScenarios()) {
+                    scenario.setFeatureFile(featureFile);
+                    testScenarioRepository.save(scenario);
+                }
+                System.out.println("Saved " + featureFile.getTestScenarios().size() + " test scenarios for " + featureFile.getFileName());
             }
+            
+            System.out.println("New tests generated successfully. Total feature files: " + featureFiles.size());
+            return featureFiles;
+        } catch (Exception e) {
+            System.err.println("Error generating feature files: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to generate tests: " + e.getMessage(), e);
         }
-        
-        System.out.println("New tests generated successfully. Total feature files: " + featureFiles.size());
-        return featureFiles;
     }
     
     public TestRun executeTestRun(Long apiSpecId, String runName, TestRunType runType) {

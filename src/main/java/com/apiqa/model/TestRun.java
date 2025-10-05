@@ -58,6 +58,11 @@ public class TestRun {
     @JsonIgnore
     private TestSuite testSuite;
     
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "environment_id")
+    @JsonIgnore
+    private Environment environment;
+    
     @Column
     private String testType;
     
@@ -208,6 +213,14 @@ public class TestRun {
     
     public void setTestSuite(TestSuite testSuite) {
         this.testSuite = testSuite;
+    }
+    
+    public Environment getEnvironment() {
+        return environment;
+    }
+    
+    public void setEnvironment(Environment environment) {
+        this.environment = environment;
     }
     
     public String getTestType() {
