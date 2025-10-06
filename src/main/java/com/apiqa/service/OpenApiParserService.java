@@ -125,7 +125,7 @@ public class OpenApiParserService {
         String result = path;
         
         // Replace common path variables with meaningful test data (max 5 chars)
-        result = result.replaceAll("\\{id\\}", "12345");
+        result = result.replaceAll("\\{id\\}", "1");
         result = result.replaceAll("\\{userId\\}", "user1");
         result = result.replaceAll("\\{user_id\\}", "user1");
         result = result.replaceAll("\\{productId\\}", "prod1");
