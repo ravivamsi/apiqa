@@ -1,6 +1,7 @@
 package com.apiqa.service;
 
 import com.apiqa.model.*;
+import com.apiqa.repository.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -24,12 +25,16 @@ import io.swagger.models.parameters.QueryParameter;
 import io.swagger.models.parameters.HeaderParameter;
 import io.swagger.models.parameters.FormParameter;
 import io.swagger.models.properties.Property;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 
 @Service
 public class OpenApiParserService {
+    
+    @Autowired
+    private EnvironmentVariableRepository environmentVariableRepository;
     
     private final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
     private final ObjectMapper jsonMapper = new ObjectMapper();
@@ -68,7 +73,7 @@ public class OpenApiParserService {
                 featureFiles.add(generateSmokeTests(openAPI, apiSpec));
                 featureFiles.add(generateSystemTests(openAPI, apiSpec));
                 featureFiles.add(generateNegativeTests(openAPI, apiSpec));
-                featureFiles.add(generateIntegrationTests(openAPI, apiSpec));
+            featureFiles.add(generateIntegrationTests(openAPI, apiSpec));
                 
             } else {
                 throw new RuntimeException("Unsupported API specification version: " + specVersion);
@@ -415,6 +420,49 @@ public class OpenApiParserService {
         return result;
     }
     
+    /**
+     * Checks if there's a token environment variable available
+     * @return true if token exists, false otherwise
+     */
+    private boolean hasTokenEnvironmentVariable() {
+        try {
+            List<EnvironmentVariable> tokenVariables = environmentVariableRepository.findByKeyIgnoreCase("token");
+            return !tokenVariables.isEmpty() && tokenVariables.get(0).getValue() != null && !tokenVariables.get(0).getValue().trim().isEmpty();
+        } catch (Exception e) {
+            System.err.println("Error checking for token environment variable: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Gets the token value from environment variables
+     * @return the token value or null if not found
+     */
+    private String getTokenValue() {
+        try {
+            List<EnvironmentVariable> tokenVariables = environmentVariableRepository.findByKeyIgnoreCase("token");
+            if (!tokenVariables.isEmpty()) {
+                return tokenVariables.get(0).getValue();
+            }
+        } catch (Exception e) {
+            System.err.println("Error retrieving token value: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    /**
+     * Adds Authorization header step to feature file content if token exists
+     * @param content The StringBuilder containing the feature file content
+     */
+    private void addAuthorizationHeaderStep(StringBuilder content) {
+        if (hasTokenEnvironmentVariable()) {
+            String token = getTokenValue();
+            if (token != null && !token.trim().isEmpty()) {
+                content.append("    And I include Authorization header with Bearer token\n");
+            }
+        }
+    }
+    
     private Swagger parseSwagger2Spec(String yamlContent) {
         try {
             SwaggerParser parser = new SwaggerParser();
@@ -571,6 +619,7 @@ public class OpenApiParserService {
                     content.append("    Given the API is available\n");
                     content.append("    And I have valid authentication credentials\n");
                     content.append("    When I send a GET request to \"").append(substitutedPath).append("\"\n");
+                    addAuthorizationHeaderStep(content);
                     content.append("    And I include valid headers\n");
                     content.append("    Then the response status should be 200\n");
                     content.append("    And the response should be valid JSON\n");
@@ -633,6 +682,7 @@ public class OpenApiParserService {
                         content.append("    And I include a valid request body\n");
                     }
                     
+                    addAuthorizationHeaderStep(content);
                     content.append("    And I include valid headers\n");
                     content.append("    Then the response status should be ").append(getExpectedStatusCode(operation)).append("\n");
                     content.append("    And the response should be valid JSON\n");
@@ -691,6 +741,7 @@ public class OpenApiParserService {
                         content.append("    Given the API is available\n");
                         content.append("    And I have valid authentication credentials\n");
                         content.append("    When I send a ").append(method).append(" request to \"").append(invalidPath).append("\"\n");
+                        addAuthorizationHeaderStep(content);
                         content.append("    And I include valid headers\n");
                         content.append("    Then the response status should be 404\n");
                         content.append("    And the response should contain an error message\n");
@@ -716,6 +767,7 @@ public class OpenApiParserService {
                         content.append("    And I have valid authentication credentials\n");
                         content.append("    When I send a ").append(method).append(" request to \"").append(substitutedPath).append("\"\n");
                         content.append("    And I include an invalid request body\n");
+                        addAuthorizationHeaderStep(content);
                         content.append("    And I include valid headers\n");
                         content.append("    Then the response status should be 400\n");
                         content.append("    And the response should contain validation error messages\n");
@@ -741,6 +793,7 @@ public class OpenApiParserService {
                         content.append("    And I have valid authentication credentials\n");
                         content.append("    When I send a ").append(method).append(" request to \"").append(substitutedPath).append("\"\n");
                         content.append("    And I include a request body with missing required fields\n");
+                        addAuthorizationHeaderStep(content);
                         content.append("    And I include valid headers\n");
                         content.append("    Then the response status should be 400\n");
                         content.append("    And the response should contain field validation error messages\n");
@@ -1451,24 +1504,24 @@ public class OpenApiParserService {
         
         // Then handle any remaining parameters from the operation definition
         if (operation.getParameters() != null && !operation.getParameters().isEmpty()) {
-            for (io.swagger.v3.oas.models.parameters.Parameter param : operation.getParameters()) {
-                if ("path".equals(param.getIn()) && param.getName() != null) {
-                    String paramName = param.getName();
-                    Object example = param.getExample();
-                    Object defaultValue = param.getSchema() != null ? param.getSchema().getExample() : null;
-                    
-                    // Use example value if available, otherwise use default test value
-                    String testValue;
-                    if (example != null) {
-                        testValue = example.toString();
-                    } else if (defaultValue != null) {
-                        testValue = defaultValue.toString();
-                    } else {
-                        // Generate test value based on parameter name
-                        testValue = generateTestValueForParameter(paramName, param.getSchema());
-                    }
-                    
-                    substitutedPath = substitutedPath.replace("{" + paramName + "}", testValue);
+        for (io.swagger.v3.oas.models.parameters.Parameter param : operation.getParameters()) {
+            if ("path".equals(param.getIn()) && param.getName() != null) {
+                String paramName = param.getName();
+                Object example = param.getExample();
+                Object defaultValue = param.getSchema() != null ? param.getSchema().getExample() : null;
+                
+                // Use example value if available, otherwise use default test value
+                String testValue;
+                if (example != null) {
+                    testValue = example.toString();
+                } else if (defaultValue != null) {
+                    testValue = defaultValue.toString();
+                } else {
+                    // Generate test value based on parameter name
+                    testValue = generateTestValueForParameter(paramName, param.getSchema());
+                }
+                
+                substitutedPath = substitutedPath.replace("{" + paramName + "}", testValue);
                 }
             }
         }
@@ -1611,6 +1664,7 @@ public class OpenApiParserService {
         content.append("    Given the API is available\n");
         content.append("    And I have valid authentication credentials\n");
         content.append("    When I send a GET request to \"").append(cleanPath).append("\"\n");
+        addAuthorizationHeaderStep(content);
         content.append("    And I include valid headers\n");
         content.append("    Then the response status should be 200\n");
         content.append("    And the response should be valid JSON\n");
@@ -1700,6 +1754,7 @@ public class OpenApiParserService {
             content.append("    And I include a valid request body\n");
         }
         
+        addAuthorizationHeaderStep(content);
         content.append("    And I include valid headers\n");
         
         // Determine expected status code based on method
