@@ -1,0 +1,469 @@
+swagger: "2.0"
+info:
+  title: JSONPlaceholder API
+  description: |-
+    A free fake and reliable API for testing and prototyping.
+    
+    JSONPlaceholder comes with a set of 6 common resources:
+    - **Posts**: 100 posts
+    - **Comments**: 500 comments  
+    - **Albums**: 100 albums
+    - **Photos**: 5000 photos
+    - **Todos**: 200 todos
+    - **Users**: 10 users
+    
+    Resources have relations. For example: posts have many comments, albums have many photos.
+    
+    **Serving ~3 billion requests each month**.
+  version: 1.0.0
+  contact:
+    name: JSONPlaceholder
+    url: https://jsonplaceholder.typicode.com
+  license:
+    name: MIT
+host: jsonplaceholder.typicode.com
+basePath: /
+schemes:
+  - https
+tags:
+  - name: Posts
+    description: Operations related to posts
+  - name: Comments
+    description: Operations related to comments
+paths:
+  /posts:
+    get:
+      summary: Get all posts
+      description: Retrieve a list of all posts
+      operationId: getAllPosts
+      tags:
+        - Posts
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: Successful response with list of posts
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Post'
+          examples:
+            application/json:
+              - id: 1
+                title: "sunt aut facere repellat provident occaecati excepturi optio reprehenderit"
+                body: "quia et suscipit\nsuscipit recusandae consequuntur expedita et cum\nreprehenderit molestiae ut ut quas totam\nnostrum rerum est autem sunt rem eveniet architecto"
+                userId: 1
+              - id: 2
+                title: "qui est esse"
+                body: "est rerum tempore vitae\nsequi sint nihil reprehenderit dolor beatae ea dolores neque\nfugiat blanditiis voluptate porro vel nihil molestiae ut reiciendis\nqui aperiam non debitis possimus qui neque nisi nulla"
+                userId: 1
+    post:
+      summary: Create a new post
+      description: Create a new post
+      operationId: createPost
+      tags:
+        - Posts
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Post object that needs to be created
+          required: true
+          schema:
+            $ref: '#/definitions/CreatePostRequest'
+      responses:
+        '201':
+          description: Post created successfully
+          schema:
+            $ref: '#/definitions/Post'
+          examples:
+            application/json:
+              id: 101
+              title: "foo"
+              body: "bar"
+              userId: 1
+        '400':
+          description: Bad Request - Invalid input
+          schema:
+            $ref: '#/definitions/Error'
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/Error'
+  /posts/{id}:
+    get:
+      summary: Get a specific post
+      description: Retrieve a specific post by its ID
+      operationId: getPostById
+      tags:
+        - Posts
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Post ID
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 1
+      responses:
+        '200':
+          description: Successful response with post details
+          schema:
+            $ref: '#/definitions/Post'
+          examples:
+            application/json:
+              id: 1
+              title: "sunt aut facere repellat provident occaecati excepturi optio reprehenderit"
+              body: "quia et suscipit\nsuscipit recusandae consequuntur expedita et cum\nreprehenderit molestiae ut ut quas totam\nnostrum rerum est autem sunt rem eveniet architecto"
+              userId: 1
+        '404':
+          description: Post not found
+          schema:
+            $ref: '#/definitions/Error'
+        '400':
+          description: Bad Request - Invalid ID
+          schema:
+            $ref: '#/definitions/Error'
+    put:
+      summary: Update a post completely
+      description: Update an entire post by replacing all fields
+      operationId: updatePost
+      tags:
+        - Posts
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Post ID
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 1
+        - in: body
+          name: body
+          description: Post object that needs to be updated
+          required: true
+          schema:
+            $ref: '#/definitions/UpdatePostRequest'
+      responses:
+        '200':
+          description: Post updated successfully
+          schema:
+            $ref: '#/definitions/Post'
+          examples:
+            application/json:
+              id: 1
+              title: "Updated Post Title"
+              body: "Updated post body content"
+              userId: 1
+        '404':
+          description: Post not found
+          schema:
+            $ref: '#/definitions/Error'
+        '400':
+          description: Bad Request - Invalid input
+          schema:
+            $ref: '#/definitions/Error'
+    patch:
+      summary: Partially update a post
+      description: Update specific fields of a post
+      operationId: patchPost
+      tags:
+        - Posts
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Post ID
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 1
+        - in: body
+          name: body
+          description: Partial post object with fields to update
+          required: true
+          schema:
+            $ref: '#/definitions/PatchPostRequest'
+      responses:
+        '200':
+          description: Post updated successfully
+          schema:
+            $ref: '#/definitions/Post'
+          examples:
+            application/json:
+              id: 1
+              title: "Partially Updated Title"
+              body: "quia et suscipit\nsuscipit recusandae consequuntur expedita et cum\nreprehenderit molestiae ut ut quas totam\nnostrum rerum est autem sunt rem eveniet architecto"
+              userId: 1
+        '404':
+          description: Post not found
+          schema:
+            $ref: '#/definitions/Error'
+        '400':
+          description: Bad Request - Invalid input
+          schema:
+            $ref: '#/definitions/Error'
+    delete:
+      summary: Delete a post
+      description: Delete a specific post by its ID
+      operationId: deletePost
+      tags:
+        - Posts
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Post ID
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 1
+      responses:
+        '200':
+          description: Post deleted successfully
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Post deleted successfully"
+        '404':
+          description: Post not found
+          schema:
+            $ref: '#/definitions/Error'
+        '400':
+          description: Bad Request - Invalid ID
+          schema:
+            $ref: '#/definitions/Error'
+  /posts/{id}/comments:
+    get:
+      summary: Get comments for a specific post
+      description: Retrieve all comments for a specific post
+      operationId: getPostComments
+      tags:
+        - Posts
+        - Comments
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Post ID
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 1
+      responses:
+        '200':
+          description: Successful response with list of comments
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Comment'
+          examples:
+            application/json:
+              - postId: 1
+                id: 1
+                name: "id labore ex et quam laborum"
+                email: "Eliseo@gardner.biz"
+                body: "laudantium enim quasi est quidem magnam voluptate ipsam eos\ntempora quo necessitatibus\ndolor quam autem quasi\nreiciendis et nam sapiente accusantium"
+              - postId: 1
+                id: 2
+                name: "quo vero reiciendis velit similique earum"
+                email: "Jayne_Kuhic@sydney.com"
+                body: "est natus enim nihil est dolore omnis voluptatem numquam\net omnis occaecati quod ullam at\nvoluptatem error expedita pariatur\nnihil sint nostrum voluptatem reiciendis"
+        '404':
+          description: Post not found
+          schema:
+            $ref: '#/definitions/Error'
+        '400':
+          description: Bad Request - Invalid ID
+          schema:
+            $ref: '#/definitions/Error'
+  /comments:
+    get:
+      summary: Get comments with optional filtering
+      description: Retrieve comments with optional filtering by postId
+      operationId: getComments
+      tags:
+        - Comments
+      produces:
+        - application/json
+      parameters:
+        - name: postId
+          in: query
+          required: false
+          description: Filter comments by post ID
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 1
+      responses:
+        '200':
+          description: Successful response with list of comments
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Comment'
+          examples:
+            application/json:
+              - postId: 1
+                id: 1
+                name: "id labore ex et quam laborum"
+                email: "Eliseo@gardner.biz"
+                body: "laudantium enim quasi est quidem magnam voluptate ipsam eos\ntempora quo necessitatibus\ndolor quam autem quasi\nreiciendis et nam sapiente accusantium"
+              - postId: 1
+                id: 2
+                name: "quo vero reiciendis velit similique earum"
+                email: "Jayne_Kuhic@sydney.com"
+                body: "est natus enim nihil est dolore omnis voluptatem numquam\net omnis occaecati quod ullam at\nvoluptatem error expedita pariatur\nnihil sint nostrum voluptatem reiciendis"
+        '400':
+          description: Bad Request - Invalid query parameters
+          schema:
+            $ref: '#/definitions/Error'
+definitions:
+  Post:
+    type: object
+    required:
+      - id
+      - title
+      - body
+      - userId
+    properties:
+      id:
+        type: integer
+        description: Unique identifier for the post
+        example: 1
+      title:
+        type: string
+        description: Title of the post
+        example: "sunt aut facere repellat provident occaecati excepturi optio reprehenderit"
+      body:
+        type: string
+        description: Content/body of the post
+        example: "quia et suscipit\nsuscipit recusandae consequuntur expedita et cum\nreprehenderit molestiae ut ut quas totam\nnostrum rerum est autem sunt rem eveniet architecto"
+      userId:
+        type: integer
+        description: ID of the user who created the post
+        example: 1
+  Comment:
+    type: object
+    required:
+      - postId
+      - id
+      - name
+      - email
+      - body
+    properties:
+      postId:
+        type: integer
+        description: ID of the post this comment belongs to
+        example: 1
+      id:
+        type: integer
+        description: Unique identifier for the comment
+        example: 1
+      name:
+        type: string
+        description: Name of the commenter
+        example: "id labore ex et quam laborum"
+      email:
+        type: string
+        format: email
+        description: Email of the commenter
+        example: "Eliseo@gardner.biz"
+      body:
+        type: string
+        description: Content of the comment
+        example: "laudantium enim quasi est quidem magnam voluptate ipsam eos\ntempora quo necessitatibus\ndolor quam autem quasi\nreiciendis et nam sapiente accusantium"
+  CreatePostRequest:
+    type: object
+    required:
+      - title
+      - body
+      - userId
+    properties:
+      title:
+        type: string
+        description: Title of the post
+        example: "foo"
+      body:
+        type: string
+        description: Content/body of the post
+        example: "bar"
+      userId:
+        type: integer
+        description: ID of the user creating the post
+        example: 1
+  UpdatePostRequest:
+    type: object
+    required:
+      - id
+      - title
+      - body
+      - userId
+    properties:
+      id:
+        type: integer
+        description: ID of the post to update
+        example: 1
+      title:
+        type: string
+        description: Updated title of the post
+        example: "Updated Post Title"
+      body:
+        type: string
+        description: Updated content/body of the post
+        example: "Updated post body content"
+      userId:
+        type: integer
+        description: ID of the user who owns the post
+        example: 1
+  PatchPostRequest:
+    type: object
+    properties:
+      title:
+        type: string
+        description: Updated title of the post
+        example: "Partially Updated Title"
+      body:
+        type: string
+        description: Updated content/body of the post
+        example: "Updated post body content"
+      userId:
+        type: integer
+        description: ID of the user who owns the post
+        example: 1
+  Error:
+    type: object
+    properties:
+      error:
+        type: string
+        description: Error message
+        example: "Not Found"
+      message:
+        type: string
+        description: Detailed error message
+        example: "The requested resource was not found"
+      statusCode:
+        type: integer
+        description: HTTP status code
+        example: 404

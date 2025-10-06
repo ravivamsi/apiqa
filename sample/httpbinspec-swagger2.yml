@@ -1,0 +1,210 @@
+swagger: "2.0"
+info:
+  title: HTTPBin API
+  description: A simple HTTP Request & Response Service
+  version: 1.0.0
+  contact:
+    name: HTTPBin
+    url: https://httpbin.org
+host: httpbin.org
+basePath: /
+schemes:
+  - https
+tags:
+  - name: HTTP Methods
+    description: Operations for testing HTTP methods
+paths:
+  /get:
+    get:
+      summary: Get request details
+      description: Returns the details of the GET request including headers, args, origin, and URL
+      operationId: getRequestDetails
+      tags:
+        - HTTP Methods
+      produces:
+        - application/json
+      parameters:
+        - name: Accept
+          in: header
+          description: Accept header value
+          required: false
+          type: string
+          default: "*/*"
+        - name: Accept-Encoding
+          in: header
+          description: Accept-Encoding header value
+          required: false
+          type: string
+          default: "gzip, deflate, br, zstd"
+        - name: Accept-Language
+          in: header
+          description: Accept-Language header value
+          required: false
+          type: string
+          default: "en-US,en;q=0.5"
+        - name: Content-Type
+          in: header
+          description: Content-Type header value
+          required: false
+          type: string
+          default: "application/x-www-form-urlencoded"
+        - name: Host
+          in: header
+          description: Host header value
+          required: false
+          type: string
+          default: "httpbin.org"
+        - name: Origin
+          in: header
+          description: Origin header value
+          required: false
+          type: string
+          example: "https://resttesttest.com"
+        - name: Priority
+          in: header
+          description: Priority header value
+          required: false
+          type: string
+          default: "u=0"
+        - name: Referer
+          in: header
+          description: Referer header value
+          required: false
+          type: string
+          example: "https://resttesttest.com/"
+        - name: Sec-Fetch-Dest
+          in: header
+          description: Sec-Fetch-Dest header value
+          required: false
+          type: string
+          default: "empty"
+        - name: Sec-Fetch-Mode
+          in: header
+          description: Sec-Fetch-Mode header value
+          required: false
+          type: string
+          default: "cors"
+        - name: Sec-Fetch-Site
+          in: header
+          description: Sec-Fetch-Site header value
+          required: false
+          type: string
+          default: "cross-site"
+        - name: User-Agent
+          in: header
+          description: User-Agent header value
+          required: false
+          type: string
+          example: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:142.0) Gecko/20100101 Firefox/142.0"
+        - name: X-Amzn-Trace-Id
+          in: header
+          description: Amazon Trace ID
+          required: false
+          type: string
+          example: "Root=1-68cf0029-198ab3f50ec50d83067d8c8e"
+      responses:
+        '200':
+          description: Successful response with request details
+          schema:
+            $ref: '#/definitions/RequestDetails'
+          examples:
+            application/json:
+              args: {}
+              headers:
+                Accept: "*/*"
+                Accept-Encoding: "gzip, deflate, br, zstd"
+                Accept-Language: "en-US,en;q=0.5"
+                Content-Type: "application/x-www-form-urlencoded"
+                Host: "httpbin.org"
+                Origin: "https://resttesttest.com"
+                Priority: "u=0"
+                Referer: "https://resttesttest.com/"
+                Sec-Fetch-Dest: "empty"
+                Sec-Fetch-Mode: "cors"
+                Sec-Fetch-Site: "cross-site"
+                User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:142.0) Gecko/20100101 Firefox/142.0"
+                X-Amzn-Trace-Id: "Root=1-68cf0029-198ab3f50ec50d83067d8c8e"
+              origin: "70.140.213.134"
+              url: "https://httpbin.org/get"
+        '400':
+          description: Bad Request
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Bad Request"
+        '500':
+          description: Internal Server Error
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Internal Server Error"
+definitions:
+  RequestDetails:
+    type: object
+    properties:
+      args:
+        type: object
+        description: Query parameters passed in the request
+        additionalProperties: true
+      headers:
+        type: object
+        description: HTTP headers from the request
+        additionalProperties:
+          type: string
+        properties:
+          Accept:
+            type: string
+            example: "*/*"
+          Accept-Encoding:
+            type: string
+            example: "gzip, deflate, br, zstd"
+          Accept-Language:
+            type: string
+            example: "en-US,en;q=0.5"
+          Content-Type:
+            type: string
+            example: "application/x-www-form-urlencoded"
+          Host:
+            type: string
+            example: "httpbin.org"
+          Origin:
+            type: string
+            example: "https://resttesttest.com"
+          Priority:
+            type: string
+            example: "u=0"
+          Referer:
+            type: string
+            example: "https://resttesttest.com/"
+          Sec-Fetch-Dest:
+            type: string
+            example: "empty"
+          Sec-Fetch-Mode:
+            type: string
+            example: "cors"
+          Sec-Fetch-Site:
+            type: string
+            example: "cross-site"
+          User-Agent:
+            type: string
+            example: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:142.0) Gecko/20100101 Firefox/142.0"
+          X-Amzn-Trace-Id:
+            type: string
+            example: "Root=1-68cf0029-198ab3f50ec50d83067d8c8e"
+      origin:
+        type: string
+        description: The IP address of the client making the request
+        example: "70.140.213.134"
+      url:
+        type: string
+        description: The full URL that was requested
+        example: "https://httpbin.org/get"
+    required:
+      - args
+      - headers
+      - origin
+      - url

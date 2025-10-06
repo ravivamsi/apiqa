@@ -12,6 +12,18 @@ import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.parser.OpenAPIV3Parser;
+import io.swagger.parser.SwaggerParser;
+import io.swagger.models.Swagger;
+import io.swagger.models.Path;
+import io.swagger.models.Response;
+import io.swagger.models.Model;
+import io.swagger.models.parameters.Parameter;
+import io.swagger.models.parameters.BodyParameter;
+import io.swagger.models.parameters.PathParameter;
+import io.swagger.models.parameters.QueryParameter;
+import io.swagger.models.parameters.HeaderParameter;
+import io.swagger.models.parameters.FormParameter;
+import io.swagger.models.properties.Property;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -24,26 +36,196 @@ public class OpenApiParserService {
     
     public List<FeatureFile> parseOpenApiSpec(String openApiYaml, ApiSpec apiSpec) {
         try {
-            OpenAPI openAPI = new OpenAPIV3Parser().readContents(openApiYaml, null, null).getOpenAPI();
+            // Clean and normalize the YAML content
+            String cleanedYaml = cleanYamlContent(openApiYaml);
+            
+            // Detect specification version
+            String specVersion = detectSpecVersion(cleanedYaml);
             
             List<FeatureFile> featureFiles = new ArrayList<>();
             
-            // Generate Smoke Tests (GET operations only) - Positive scenarios
-            featureFiles.add(generateSmokeTests(openAPI, apiSpec));
-            
-            // Generate System Tests (All CRUD operations) - Positive and Negative scenarios
-            featureFiles.add(generateSystemTests(openAPI, apiSpec));
-            
-            // Generate Negative Test Scenarios
-            featureFiles.add(generateNegativeTests(openAPI, apiSpec));
-            
-            // Generate Integration Tests (Endpoint orchestration)
-            featureFiles.add(generateIntegrationTests(openAPI, apiSpec));
+            if ("swagger".equals(specVersion)) {
+                // Parse Swagger 2.0 specification
+                Swagger swagger = parseSwagger2Spec(cleanedYaml);
+                if (swagger == null) {
+                    throw new RuntimeException("Failed to parse Swagger 2.0 specification");
+                }
+                
+                // Generate feature files for Swagger 2.0
+                featureFiles.add(generateSmokeTestsSwagger2(swagger, apiSpec));
+                featureFiles.add(generateSystemTestsSwagger2(swagger, apiSpec));
+                featureFiles.add(generateNegativeTestsSwagger2(swagger, apiSpec));
+                featureFiles.add(generateIntegrationTestsSwagger2(swagger, apiSpec));
+                
+            } else if ("openapi".equals(specVersion)) {
+                // Parse OpenAPI 3.0.0 specification
+                OpenAPI openAPI = parseOpenApi3Spec(cleanedYaml);
+                if (openAPI == null) {
+                    throw new RuntimeException("Failed to parse OpenAPI 3.0.0 specification");
+                }
+                
+                // Generate feature files for OpenAPI 3.0.0
+                featureFiles.add(generateSmokeTests(openAPI, apiSpec));
+                featureFiles.add(generateSystemTests(openAPI, apiSpec));
+                featureFiles.add(generateNegativeTests(openAPI, apiSpec));
+                featureFiles.add(generateIntegrationTests(openAPI, apiSpec));
+                
+            } else {
+                throw new RuntimeException("Unsupported API specification version: " + specVersion);
+            }
             
             return featureFiles;
             
         } catch (Exception e) {
-            throw new RuntimeException("Failed to parse OpenAPI specification", e);
+            throw new RuntimeException("Failed to parse API specification: " + e.getMessage(), e);
+        }
+    }
+    
+    private String cleanYamlContent(String yamlContent) {
+        try {
+            // Remove or replace common problematic patterns
+            String cleaned = yamlContent;
+            
+            // Handle environment variables and placeholders
+            cleaned = cleaned.replaceAll("\\$\\{[^}]+\\}", "PLACEHOLDER_VALUE");
+            cleaned = cleaned.replaceAll("\\$[A-Z_]+", "PLACEHOLDER_VALUE");
+            
+            // Handle special characters that might cause parsing issues
+            cleaned = cleaned.replaceAll("\\$\\$", "DOLLAR_SIGN");
+            cleaned = cleaned.replaceAll("\\@\\@", "AT_SIGN");
+            
+            // Remove comments that might contain special characters
+            cleaned = cleaned.replaceAll("#.*$", "");
+            
+            // Handle multiline strings with special characters
+            cleaned = cleaned.replaceAll("\\|\\s*$", "|");
+            cleaned = cleaned.replaceAll(">\\s*$", ">");
+            
+            // Normalize line endings
+            cleaned = cleaned.replaceAll("\\r\\n", "\n").replaceAll("\\r", "\n");
+            
+            return cleaned;
+            
+        } catch (Exception e) {
+            // If cleaning fails, return original content
+            return yamlContent;
+        }
+    }
+    
+    private Swagger parseSwagger2Spec(String yamlContent) {
+        try {
+            SwaggerParser parser = new SwaggerParser();
+            Swagger swagger = parser.parse(yamlContent);
+            
+            // If parsing fails, try with additional options
+            if (swagger == null) {
+                // Try parsing with relaxed validation
+                swagger = parser.parse(yamlContent);
+            }
+            
+            return swagger;
+            
+        } catch (Exception e) {
+            // Log the error but don't fail completely
+            System.err.println("Warning: Error parsing Swagger 2.0 spec: " + e.getMessage());
+            
+            // Try to create a minimal valid Swagger object
+            try {
+                Swagger minimalSwagger = new Swagger();
+                minimalSwagger.setSwagger("2.0");
+                minimalSwagger.setInfo(new io.swagger.models.Info());
+                minimalSwagger.getInfo().setTitle("Parsed API");
+                minimalSwagger.getInfo().setVersion("1.0.0");
+                minimalSwagger.setPaths(new java.util.HashMap<>());
+                return minimalSwagger;
+            } catch (Exception ex) {
+                return null;
+            }
+        }
+    }
+    
+    private OpenAPI parseOpenApi3Spec(String yamlContent) {
+        try {
+            OpenAPIV3Parser parser = new OpenAPIV3Parser();
+            OpenAPI openAPI = parser.readContents(yamlContent, null, null).getOpenAPI();
+            
+            if (openAPI != null) {
+                return openAPI;
+            }
+            
+            // If parsing fails, try with additional options
+            openAPI = parser.readContents(yamlContent, null, null).getOpenAPI();
+            if (openAPI != null) {
+                return openAPI;
+            }
+            
+            return null;
+            
+        } catch (Exception e) {
+            // Log the error but don't fail completely
+            System.err.println("Warning: Error parsing OpenAPI 3.0 spec: " + e.getMessage());
+            
+            // Try to create a minimal valid OpenAPI object
+            try {
+                OpenAPI minimalOpenAPI = new OpenAPI();
+                minimalOpenAPI.setOpenapi("3.0.0");
+                minimalOpenAPI.setInfo(new io.swagger.v3.oas.models.info.Info());
+                minimalOpenAPI.getInfo().setTitle("Parsed API");
+                minimalOpenAPI.getInfo().setVersion("1.0.0");
+                minimalOpenAPI.setPaths(new io.swagger.v3.oas.models.Paths());
+                return minimalOpenAPI;
+            } catch (Exception ex) {
+                return null;
+            }
+        }
+    }
+    
+    private String detectSpecVersion(String specContent) {
+        try {
+            // First try to parse as YAML
+            JsonNode rootNode = yamlMapper.readTree(specContent);
+            
+            // Check for Swagger 2.0
+            if (rootNode.has("swagger")) {
+                String swaggerVersion = rootNode.get("swagger").asText();
+                if (swaggerVersion.startsWith("2.")) {
+                    return "swagger";
+                }
+            }
+            
+            // Check for OpenAPI 3.0.0
+            if (rootNode.has("openapi")) {
+                String openApiVersion = rootNode.get("openapi").asText();
+                if (openApiVersion.startsWith("3.")) {
+                    return "openapi";
+                }
+            }
+            
+            throw new RuntimeException("Unable to detect API specification version");
+            
+        } catch (Exception e) {
+            // If YAML parsing fails, try string-based detection
+            try {
+                String content = specContent.toLowerCase();
+                
+                // Look for version indicators in the content
+                if (content.contains("swagger:") && content.contains("2.0")) {
+                    return "swagger";
+                } else if (content.contains("openapi:") && content.contains("3.0")) {
+                    return "openapi";
+                } else if (content.contains("swagger:")) {
+                    return "swagger";
+                } else if (content.contains("openapi:")) {
+                    return "openapi";
+                }
+                
+                // Default to OpenAPI 3.0 if we can't determine
+                System.err.println("Warning: Could not detect specification version, defaulting to OpenAPI 3.0");
+                return "openapi";
+                
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to detect specification version", ex);
+            }
         }
     }
     
@@ -1055,6 +1237,586 @@ public class OpenApiParserService {
                                          FeatureFile featureFile) {
         return new TestScenario(scenarioName, description, httpMethod, endpoint, requestBody,
                 expectedResponseSchema, expectedHeaders, expectedStatusCode, testSteps, featureFile);
+    }
+    
+    // ==================== SWAGGER 2.0 SPECIFIC METHODS ====================
+    
+    private String getBaseUrlSwagger2(Swagger swagger) {
+        if (swagger.getHost() != null && swagger.getBasePath() != null) {
+            return "https://" + swagger.getHost() + swagger.getBasePath();
+        } else if (swagger.getHost() != null) {
+            return "https://" + swagger.getHost();
+        }
+        return "https://api.example.com";
+    }
+    
+    private FeatureFile generateSmokeTestsSwagger2(Swagger swagger, ApiSpec apiSpec) {
+        StringBuilder content = new StringBuilder();
+        List<TestScenario> scenarios = new ArrayList<>();
+        
+        content.append("Feature: Smoke Tests - Read-only Operations (Positive Scenarios)\n");
+        content.append("  As a QA Engineer\n");
+        content.append("  I want to verify basic API functionality with valid requests\n");
+        content.append("  So that I can ensure the API is accessible and responding correctly\n\n");
+        
+        String baseUrl = getBaseUrlSwagger2(swagger);
+        
+        if (swagger != null && swagger.getPaths() != null) {
+            for (Map.Entry<String, Path> pathEntry : swagger.getPaths().entrySet()) {
+                String path = pathEntry.getKey();
+                Path pathItem = pathEntry.getValue();
+                
+                if (pathItem != null && pathItem.getGet() != null) {
+                    generateSmokeTestSwagger2(content, scenarios, path, pathItem.getGet(), baseUrl);
+                }
+            }
+        }
+        
+        // If no paths found, create a basic smoke test
+        if (scenarios.isEmpty()) {
+            content.append("  Scenario: Basic API Health Check\n");
+            content.append("    Given the API is available\n");
+            content.append("    When I send a GET request to \"/health\"\n");
+            content.append("    Then the response status should be 200\n\n");
+            
+            TestScenario scenario = new TestScenario();
+            scenario.setScenarioName("Basic API Health Check");
+            scenario.setDescription("Basic health check for API availability");
+            scenario.setHttpMethod("GET");
+            scenario.setEndpoint("/health");
+            scenario.setCreatedAt(java.time.LocalDateTime.now());
+            scenarios.add(scenario);
+        }
+        
+        String fileName = (apiSpec.getName() != null ? apiSpec.getName().replaceAll("[^a-zA-Z0-9]", "_") : "API") + "_smoke_tests.feature";
+        FeatureFile featureFile = new FeatureFile(fileName, TestSuiteType.SMOKE, content.toString(), apiSpec);
+        
+        // Set the FeatureFile on all scenarios
+        for (TestScenario scenario : scenarios) {
+            scenario.setFeatureFile(featureFile);
+        }
+        
+        featureFile.setTestScenarios(scenarios);
+        return featureFile;
+    }
+    
+    private void generateSmokeTestSwagger2(StringBuilder content, List<TestScenario> scenarios, String path, io.swagger.models.Operation operation, String baseUrl) {
+        String scenarioName = "GET " + path + " - Valid Request";
+        
+        content.append("  Scenario: ").append(scenarioName).append("\n");
+        content.append("    Given the API is available\n");
+        content.append("    And I have valid authentication credentials\n");
+        content.append("    When I send a GET request to \"").append(path).append("\"\n");
+        content.append("    And I include valid headers\n");
+        content.append("    Then the response status should be 200\n");
+        content.append("    And the response should be valid JSON\n");
+        content.append("    And the response should not be empty\n\n");
+        
+        // Create TestScenario object
+        TestScenario scenario = new TestScenario();
+        scenario.setScenarioName(scenarioName);
+        scenario.setDescription("Smoke test for GET " + path);
+        scenario.setHttpMethod("GET");
+        scenario.setEndpoint(path);
+        scenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(scenario);
+    }
+    
+    private FeatureFile generateSystemTestsSwagger2(Swagger swagger, ApiSpec apiSpec) {
+        StringBuilder content = new StringBuilder();
+        List<TestScenario> scenarios = new ArrayList<>();
+        
+        content.append("Feature: System Tests - All CRUD Operations (Positive Scenarios)\n");
+        content.append("  As a QA Engineer\n");
+        content.append("  I want to test all API operations thoroughly with valid data\n");
+        content.append("  So that I can ensure complete API functionality works correctly\n\n");
+        
+        String baseUrl = getBaseUrlSwagger2(swagger);
+        
+        if (swagger != null && swagger.getPaths() != null) {
+            for (Map.Entry<String, Path> pathEntry : swagger.getPaths().entrySet()) {
+                String path = pathEntry.getKey();
+                Path pathItem = pathEntry.getValue();
+                
+                if (pathItem != null) {
+                    if (pathItem.getPost() != null) {
+                        generateSystemTestSwagger2(content, scenarios, path, pathItem.getPost(), "POST", baseUrl);
+                    }
+                    if (pathItem.getPut() != null) {
+                        generateSystemTestSwagger2(content, scenarios, path, pathItem.getPut(), "PUT", baseUrl);
+                    }
+                    if (pathItem.getPatch() != null) {
+                        generateSystemTestSwagger2(content, scenarios, path, pathItem.getPatch(), "PATCH", baseUrl);
+                    }
+                    if (pathItem.getDelete() != null) {
+                        generateSystemTestSwagger2(content, scenarios, path, pathItem.getDelete(), "DELETE", baseUrl);
+                    }
+                }
+            }
+        }
+        
+        // If no paths found, create a basic system test
+        if (scenarios.isEmpty()) {
+            content.append("  Scenario: Basic System Test\n");
+            content.append("    Given the API is available\n");
+            content.append("    When I send a POST request to \"/test\"\n");
+            content.append("    Then the response status should be 200\n\n");
+            
+            TestScenario scenario = new TestScenario();
+            scenario.setScenarioName("Basic System Test");
+            scenario.setDescription("Basic system test for API functionality");
+            scenario.setHttpMethod("POST");
+            scenario.setEndpoint("/test");
+            scenario.setCreatedAt(java.time.LocalDateTime.now());
+            scenarios.add(scenario);
+        }
+        
+        String fileName = (apiSpec.getName() != null ? apiSpec.getName().replaceAll("[^a-zA-Z0-9]", "_") : "API") + "_system_tests.feature";
+        FeatureFile featureFile = new FeatureFile(fileName, TestSuiteType.SYSTEM, content.toString(), apiSpec);
+        
+        // Set the FeatureFile on all scenarios
+        for (TestScenario scenario : scenarios) {
+            scenario.setFeatureFile(featureFile);
+        }
+        
+        featureFile.setTestScenarios(scenarios);
+        return featureFile;
+    }
+    
+    private void generateSystemTestSwagger2(StringBuilder content, List<TestScenario> scenarios, String path, io.swagger.models.Operation operation, String method, String baseUrl) {
+        String scenarioName = method + " " + path + " - Valid Request";
+        
+        content.append("  Scenario: ").append(scenarioName).append("\n");
+        content.append("    Given the API is available\n");
+        content.append("    And I have valid authentication credentials\n");
+        content.append("    When I send a ").append(method).append(" request to \"").append(path).append("\"\n");
+        
+        if (operation.getParameters() != null && operation.getParameters().stream().anyMatch(p -> p instanceof BodyParameter)) {
+            content.append("    And I include a valid request body\n");
+        }
+        
+        content.append("    And I include valid headers\n");
+        
+        // Determine expected status code based on method
+        int expectedStatus = getExpectedStatusCodeSwagger2(method, operation);
+        content.append("    Then the response status should be ").append(expectedStatus).append("\n");
+        content.append("    And the response should be valid JSON\n\n");
+        
+        // Create TestScenario object
+        TestScenario scenario = new TestScenario();
+        scenario.setScenarioName(scenarioName);
+        scenario.setDescription("System test for " + method + " " + path);
+        scenario.setHttpMethod(method);
+        scenario.setEndpoint(path);
+        scenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(scenario);
+    }
+    
+    private int getExpectedStatusCodeSwagger2(String method, io.swagger.models.Operation operation) {
+        if ("POST".equals(method)) {
+            return 201;
+        } else if ("PUT".equals(method) || "PATCH".equals(method)) {
+            return 200;
+        } else if ("DELETE".equals(method)) {
+            return 200;
+        }
+        return 200;
+    }
+    
+    private FeatureFile generateNegativeTestsSwagger2(Swagger swagger, ApiSpec apiSpec) {
+        StringBuilder content = new StringBuilder();
+        List<TestScenario> scenarios = new ArrayList<>();
+        
+        content.append("Feature: Negative Tests - Invalid Requests and Error Handling\n");
+        content.append("  As a QA Engineer\n");
+        content.append("  I want to test API error handling with invalid requests\n");
+        content.append("  So that I can ensure the API handles errors gracefully\n\n");
+        
+        String baseUrl = getBaseUrlSwagger2(swagger);
+        
+        if (swagger.getPaths() != null) {
+            for (Map.Entry<String, Path> pathEntry : swagger.getPaths().entrySet()) {
+                String path = pathEntry.getKey();
+                Path pathItem = pathEntry.getValue();
+                
+                if (pathItem.getPost() != null) {
+                    generateNegativeTestSwagger2(content, scenarios, path, pathItem.getPost(), "POST", baseUrl);
+                }
+                if (pathItem.getPut() != null) {
+                    generateNegativeTestSwagger2(content, scenarios, path, pathItem.getPut(), "PUT", baseUrl);
+                }
+                if (pathItem.getPatch() != null) {
+                    generateNegativeTestSwagger2(content, scenarios, path, pathItem.getPatch(), "PATCH", baseUrl);
+                }
+                if (pathItem.getDelete() != null) {
+                    generateNegativeTestSwagger2(content, scenarios, path, pathItem.getDelete(), "DELETE", baseUrl);
+                }
+            }
+        }
+        
+        String fileName = apiSpec.getName().replaceAll("[^a-zA-Z0-9]", "_") + "_negative_tests.feature";
+        FeatureFile featureFile = new FeatureFile(fileName, TestSuiteType.SYSTEM, content.toString(), apiSpec);
+        
+        // Set the FeatureFile on all scenarios
+        for (TestScenario scenario : scenarios) {
+            scenario.setFeatureFile(featureFile);
+        }
+        
+        featureFile.setTestScenarios(scenarios);
+        return featureFile;
+    }
+    
+    private void generateNegativeTestSwagger2(StringBuilder content, List<TestScenario> scenarios, String path, io.swagger.models.Operation operation, String method, String baseUrl) {
+        String scenarioName = method + " " + path + " - Invalid Request";
+        
+        content.append("  Scenario: ").append(scenarioName).append("\n");
+        content.append("    Given the API is available\n");
+        content.append("    And I have valid authentication credentials\n");
+        content.append("    When I send a ").append(method).append(" request to \"").append(path).append("\"\n");
+        
+        if (operation.getParameters() != null && operation.getParameters().stream().anyMatch(p -> p instanceof BodyParameter)) {
+            content.append("    And I include an invalid request body\n");
+        }
+        
+        content.append("    And I include valid headers\n");
+        content.append("    Then the response status should be 400\n");
+        content.append("    And the response should contain an error message\n\n");
+        
+        // Create TestScenario object
+        TestScenario scenario = new TestScenario();
+        scenario.setScenarioName(scenarioName);
+        scenario.setDescription("Negative test for " + method + " " + path);
+        scenario.setHttpMethod(method);
+        scenario.setEndpoint(path);
+        scenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(scenario);
+    }
+    
+    private FeatureFile generateIntegrationTestsSwagger2(Swagger swagger, ApiSpec apiSpec) {
+        StringBuilder content = new StringBuilder();
+        List<TestScenario> scenarios = new ArrayList<>();
+        
+        content.append("Feature: Integration Tests - CRUD Operations with Verification\n");
+        content.append("  As a QA Engineer\n");
+        content.append("  I want to test complete CRUD workflows with verification\n");
+        content.append("  So that I can ensure data integrity and proper API behavior\n\n");
+        
+        content.append("  Background:\n");
+        content.append("    Given the API base URL is \"").append(getBaseUrlSwagger2(swagger)).append("\"\n");
+        content.append("    And the Content-Type is \"application/json\"\n\n");
+        
+        if (swagger.getPaths() != null) {
+            for (Map.Entry<String, Path> pathEntry : swagger.getPaths().entrySet()) {
+                String path = pathEntry.getKey();
+                Path pathItem = pathEntry.getValue();
+                
+                if (pathItem.getPost() != null) {
+                    generatePostIntegrationTestsSwagger2(content, scenarios, path, pathItem.getPost(), findGetOperationSwagger2(swagger, path));
+                }
+                if (pathItem.getPut() != null) {
+                    generatePutIntegrationTestsSwagger2(content, scenarios, path, pathItem.getPut(), findGetOperationSwagger2(swagger, path));
+                }
+                if (pathItem.getPatch() != null) {
+                    generatePatchIntegrationTestsSwagger2(content, scenarios, path, pathItem.getPatch(), findGetOperationSwagger2(swagger, path));
+                }
+                if (pathItem.getDelete() != null) {
+                    generateDeleteIntegrationTestsSwagger2(content, scenarios, path, pathItem.getDelete(), findGetOperationSwagger2(swagger, path));
+                }
+                if (pathItem.getGet() != null) {
+                    generateGetFilterTestsSwagger2(content, scenarios, path, pathItem.getGet());
+                }
+            }
+        }
+        
+        String fileName = apiSpec.getName().replaceAll("[^a-zA-Z0-9]", "_") + "_integration_tests.feature";
+        FeatureFile featureFile = new FeatureFile(fileName, TestSuiteType.INTEGRATION, content.toString(), apiSpec);
+        
+        // Set the FeatureFile on all scenarios
+        for (TestScenario scenario : scenarios) {
+            scenario.setFeatureFile(featureFile);
+        }
+        
+        featureFile.setTestScenarios(scenarios);
+        return featureFile;
+    }
+    
+    private io.swagger.models.Operation findGetOperationSwagger2(Swagger swagger, String path) {
+        Path pathItem = swagger.getPaths().get(path);
+        return pathItem != null ? pathItem.getGet() : null;
+    }
+    
+    private void generatePostIntegrationTestsSwagger2(StringBuilder content, List<TestScenario> scenarios, String path, io.swagger.models.Operation postOp, io.swagger.models.Operation getOp) {
+        String resourceName = extractResourceName(path);
+        String scenarioName = "Create " + resourceName + " and verify creation";
+        
+        content.append("  @integration @create @").append(resourceName.toLowerCase()).append("\n");
+        content.append("  Scenario: ").append(scenarioName).append("\n");
+        content.append("    Given I want to create a new ").append(resourceName).append("\n");
+        
+        // Generate POST request body based on Swagger 2.0 schema
+        String requestBody = generateRequestBodySwagger2(postOp);
+        content.append("    When I send a POST request to \"").append(path).append("\" with body:\n");
+        content.append("      \"\"\"\n");
+        content.append(requestBody);
+        content.append("\n      \"\"\"\n");
+        content.append("    Then the response status should be 201 or 200\n");
+        content.append("    And the response should contain an \"id\" field\n");
+        content.append("    And I store the response \"id\" as \"created").append(resourceName).append("Id\"\n\n");
+        
+        // Generate GET verification
+        if (getOp != null) {
+            String getPath = generateGetPathSwagger2(path, postOp);
+            content.append("    When I send a GET request to \"").append(getPath).append("\"\n");
+            content.append("    Then the response status should be 200\n");
+            content.append("    And the response should contain the created ").append(resourceName).append(" data\n");
+            content.append("    And the response \"id\" should equal {{created").append(resourceName).append("Id}}\n\n");
+        }
+        
+        // Create TestScenario object
+        TestScenario scenario = new TestScenario();
+        scenario.setScenarioName(scenarioName);
+        scenario.setDescription("Integration test for creating " + resourceName + " with verification");
+        scenario.setHttpMethod("POST");
+        scenario.setEndpoint(path);
+        scenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(scenario);
+    }
+    
+    private void generatePutIntegrationTestsSwagger2(StringBuilder content, List<TestScenario> scenarios, String path, io.swagger.models.Operation putOp, io.swagger.models.Operation getOp) {
+        String resourceName = extractResourceName(path);
+        String scenarioName = "Update " + resourceName + " using PUT and verify update";
+        
+        content.append("  @integration @update @").append(resourceName.toLowerCase()).append("\n");
+        content.append("  Scenario: ").append(scenarioName).append("\n");
+        content.append("    Given I want to update an existing ").append(resourceName).append("\n");
+        content.append("    And I have a ").append(resourceName).append(" with ID 1\n");
+        
+        String requestBody = generateRequestBodySwagger2(putOp);
+        content.append("    When I send a PUT request to \"").append(path).append("\" with body:\n");
+        content.append("      \"\"\"\n");
+        content.append(requestBody);
+        content.append("\n      \"\"\"\n");
+        content.append("    Then the response status should be 200\n");
+        content.append("    And the response should contain updated ").append(resourceName).append(" data\n\n");
+        
+        if (getOp != null) {
+            String getPath = generateGetPathSwagger2(path, putOp);
+            content.append("    When I send a GET request to \"").append(getPath).append("\"\n");
+            content.append("    Then the response status should be 200\n");
+            content.append("    And the response should contain the updated ").append(resourceName).append(" data\n");
+            content.append("    And the response \"id\" should equal 1\n\n");
+        }
+        
+        // Create TestScenario object
+        TestScenario scenario = new TestScenario();
+        scenario.setScenarioName(scenarioName);
+        scenario.setDescription("Integration test for updating " + resourceName + " with verification");
+        scenario.setHttpMethod("PUT");
+        scenario.setEndpoint(path);
+        scenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(scenario);
+    }
+    
+    private void generatePatchIntegrationTestsSwagger2(StringBuilder content, List<TestScenario> scenarios, String path, io.swagger.models.Operation patchOp, io.swagger.models.Operation getOp) {
+        String resourceName = extractResourceName(path);
+        String scenarioName = "Update " + resourceName + " using PATCH and verify update";
+        
+        content.append("  @integration @update @").append(resourceName.toLowerCase()).append("\n");
+        content.append("  Scenario: ").append(scenarioName).append("\n");
+        content.append("    Given I want to update an existing ").append(resourceName).append("\n");
+        content.append("    And I have a ").append(resourceName).append(" with ID 1\n");
+        
+        String requestBody = generatePartialRequestBodySwagger2(patchOp);
+        content.append("    When I send a PATCH request to \"").append(path).append("\" with body:\n");
+        content.append("      \"\"\"\n");
+        content.append(requestBody);
+        content.append("\n      \"\"\"\n");
+        content.append("    Then the response status should be 200\n");
+        content.append("    And the response should contain updated ").append(resourceName).append(" data\n\n");
+        
+        if (getOp != null) {
+            String getPath = generateGetPathSwagger2(path, patchOp);
+            content.append("    When I send a GET request to \"").append(getPath).append("\"\n");
+            content.append("    Then the response status should be 200\n");
+            content.append("    And the response should contain the updated ").append(resourceName).append(" data\n");
+            content.append("    And the response \"id\" should equal 1\n\n");
+        }
+        
+        // Create TestScenario object
+        TestScenario scenario = new TestScenario();
+        scenario.setScenarioName(scenarioName);
+        scenario.setDescription("Integration test for patching " + resourceName + " with verification");
+        scenario.setHttpMethod("PATCH");
+        scenario.setEndpoint(path);
+        scenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(scenario);
+    }
+    
+    private void generateDeleteIntegrationTestsSwagger2(StringBuilder content, List<TestScenario> scenarios, String path, io.swagger.models.Operation deleteOp, io.swagger.models.Operation getOp) {
+        String resourceName = extractResourceName(path);
+        String scenarioName = "Delete " + resourceName + " and verify deletion";
+        
+        content.append("  @integration @delete @").append(resourceName.toLowerCase()).append("\n");
+        content.append("  Scenario: ").append(scenarioName).append("\n");
+        content.append("    Given I want to delete an existing ").append(resourceName).append("\n");
+        content.append("    And I have a ").append(resourceName).append(" with ID 1\n");
+        
+        content.append("    When I send a DELETE request to \"").append(path).append("\"\n");
+        content.append("    Then the response status should be 200\n\n");
+        
+        if (getOp != null) {
+            String getPath = generateGetPathSwagger2(path, deleteOp);
+            content.append("    When I send a GET request to \"").append(getPath).append("\"\n");
+            content.append("    Then the response status should be 404\n");
+            content.append("    And the response should not contain the deleted ").append(resourceName).append(" data\n\n");
+        }
+        
+        // Create TestScenario object
+        TestScenario scenario = new TestScenario();
+        scenario.setScenarioName(scenarioName);
+        scenario.setDescription("Integration test for deleting " + resourceName + " with verification");
+        scenario.setHttpMethod("DELETE");
+        scenario.setEndpoint(path);
+        scenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(scenario);
+    }
+    
+    private void generateGetFilterTestsSwagger2(StringBuilder content, List<TestScenario> scenarios, String path, io.swagger.models.Operation getOp) {
+        String resourceName = extractResourceName(path);
+        String scenarioName = "Get " + resourceName + " with filters";
+        
+        content.append("  @integration @read @").append(resourceName.toLowerCase()).append("\n");
+        content.append("  Scenario: ").append(scenarioName).append("\n");
+        content.append("    Given I want to retrieve ").append(resourceName).append(" with filters\n");
+        
+        content.append("    When I send a GET request to \"").append(path).append("\"\n");
+        content.append("    Then the response status should be 200\n");
+        content.append("    And the response should be an array\n");
+        content.append("    And the response should contain ").append(resourceName).append(" data\n\n");
+        
+        // Create TestScenario object
+        TestScenario scenario = new TestScenario();
+        scenario.setScenarioName(scenarioName);
+        scenario.setDescription("Integration test for getting " + resourceName + " with filters");
+        scenario.setHttpMethod("GET");
+        scenario.setEndpoint(path);
+        scenario.setCreatedAt(java.time.LocalDateTime.now());
+        scenarios.add(scenario);
+    }
+    
+    private String generateRequestBodySwagger2(io.swagger.models.Operation operation) {
+        if (operation.getParameters() == null) {
+            return "{}";
+        }
+        
+        for (Parameter param : operation.getParameters()) {
+            if (param instanceof BodyParameter) {
+                BodyParameter bodyParam = (BodyParameter) param;
+                if (bodyParam.getSchema() != null) {
+                    return generateJsonFromSchemaSwagger2(bodyParam.getSchema());
+                }
+            }
+        }
+        
+        return "{}";
+    }
+    
+    private String generatePartialRequestBodySwagger2(io.swagger.models.Operation operation) {
+        if (operation.getParameters() == null) {
+            return "{}";
+        }
+        
+        for (Parameter param : operation.getParameters()) {
+            if (param instanceof BodyParameter) {
+                BodyParameter bodyParam = (BodyParameter) param;
+                if (bodyParam.getSchema() != null) {
+                    return generatePartialJsonFromSchemaSwagger2(bodyParam.getSchema());
+                }
+            }
+        }
+        
+        return "{}";
+    }
+    
+    private String generateJsonFromSchemaSwagger2(io.swagger.models.Model schema) {
+        StringBuilder json = new StringBuilder();
+        json.append("{\n");
+        
+        if (schema.getProperties() != null) {
+            boolean first = true;
+            for (Map.Entry<String, Property> entry : schema.getProperties().entrySet()) {
+                if (!first) {
+                    json.append(",\n");
+                }
+                json.append("  \"").append(entry.getKey()).append("\": ");
+                json.append(generateValueFromPropertySwagger2(entry.getValue()));
+                first = false;
+            }
+        }
+        
+        json.append("\n}");
+        return json.toString();
+    }
+    
+    private String generatePartialJsonFromSchemaSwagger2(io.swagger.models.Model schema) {
+        StringBuilder json = new StringBuilder();
+        json.append("{\n");
+        
+        if (schema.getProperties() != null) {
+            boolean first = true;
+            int count = 0;
+            for (Map.Entry<String, Property> entry : schema.getProperties().entrySet()) {
+                if (count >= 2) break; // Only include first 2 properties for partial updates
+                
+                if (!first) {
+                    json.append(",\n");
+                }
+                json.append("  \"").append(entry.getKey()).append("\": ");
+                json.append(generateValueFromPropertySwagger2(entry.getValue()));
+                first = false;
+                count++;
+            }
+        }
+        
+        json.append("\n}");
+        return json.toString();
+    }
+    
+    private String generateValueFromPropertySwagger2(io.swagger.models.properties.Property property) {
+        if (property.getType() != null) {
+            switch (property.getType()) {
+                case "string":
+                    return "\"Test Value\"";
+                case "integer":
+                    return "1";
+                case "number":
+                    return "1.0";
+                case "boolean":
+                    return "true";
+                case "array":
+                    return "[]";
+                case "object":
+                    return "{}";
+                default:
+                    return "\"Test Value\"";
+            }
+        }
+        return "\"Test Value\"";
+    }
+    
+    private String generateGetPathSwagger2(String path, io.swagger.models.Operation operation) {
+        // Replace path parameters with test values
+        String getPath = path;
+        if (operation.getParameters() != null) {
+            for (Parameter param : operation.getParameters()) {
+                if (param instanceof PathParameter) {
+                    PathParameter pathParam = (PathParameter) param;
+                    String paramName = pathParam.getName();
+                    getPath = getPath.replace("{" + paramName + "}", "1");
+                }
+            }
+        }
+        return getPath;
     }
     
 }

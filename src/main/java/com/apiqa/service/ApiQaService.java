@@ -234,4 +234,8 @@ public class ApiQaService {
     public Optional<FeatureFile> getFeatureFileById(Long id) {
         return featureFileRepository.findById(id);
     }
+    
+    public FeatureFile saveFeatureFile(FeatureFile featureFile) {
+        return featureFileRepository.save(featureFile);
+    }
 }

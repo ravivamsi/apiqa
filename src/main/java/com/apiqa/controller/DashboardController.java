@@ -15,6 +15,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Controller
@@ -228,6 +229,30 @@ public class DashboardController {
             return ResponseEntity.ok(content);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Error retrieving feature content: " + e.getMessage());
+        }
+    }
+    
+    @PutMapping("/api/feature-content/{id}")
+    @ResponseBody
+    public ResponseEntity<String> updateFeatureContent(@PathVariable Long id, @RequestBody Map<String, String> request) {
+        try {
+            String content = request.get("content");
+            if (content == null || content.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Content cannot be empty");
+            }
+            
+            Optional<FeatureFile> featureOpt = apiQaService.getFeatureFileById(id);
+            if (featureOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            FeatureFile feature = featureOpt.get();
+            feature.setContent(content);
+            apiQaService.saveFeatureFile(feature);
+            
+            return ResponseEntity.ok("Feature file updated successfully");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error updating feature content: " + e.getMessage());
         }
     }
 }
