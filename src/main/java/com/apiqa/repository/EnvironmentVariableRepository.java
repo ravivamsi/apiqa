@@ -21,5 +21,7 @@ public interface EnvironmentVariableRepository extends JpaRepository<Environment
     @Query("SELECT ev FROM EnvironmentVariable ev WHERE ev.environment.id = :environmentId ORDER BY ev.key")
     List<EnvironmentVariable> findByEnvironmentId(@Param("environmentId") Long environmentId);
     
+    List<EnvironmentVariable> findByKeyIgnoreCase(String key);
+    
     void deleteByEnvironmentIdAndKey(Long environmentId, String key);
 }

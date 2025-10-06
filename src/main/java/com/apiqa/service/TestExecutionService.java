@@ -28,6 +28,9 @@ public class TestExecutionService {
     @Autowired
     private TestSuiteRepository testSuiteRepository;
     
+    @Autowired
+    private EnvironmentVariableRepository environmentVariableRepository;
+    
     private final RestTemplate restTemplate = new RestTemplate();
     
     // Execute Test Suite
@@ -145,6 +148,9 @@ public class TestExecutionService {
     private ResponseEntity<String> executeHttpRequest(TestCase testCase) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        
+        // Add Authorization header if token is available
+        addAuthorizationHeader(headers, null);
         
         HttpEntity<String> entity = new HttpEntity<>(testCase.getRequestBody(), headers);
         
@@ -385,6 +391,9 @@ public class TestExecutionService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         
+        // Add Authorization header if token is available
+        addAuthorizationHeader(headers, scenario.getFeatureFile().getApiSpec());
+        
         HttpEntity<String> entity = new HttpEntity<>(scenario.getRequestBody(), headers);
         
         HttpMethod method = HttpMethod.valueOf(scenario.getHttpMethod());
@@ -416,5 +425,78 @@ public class TestExecutionService {
     
     public Optional<TestExecution> getTestExecutionById(Long id) {
         return testExecutionRepository.findById(id);
+    }
+    
+    /**
+     * Adds Authorization header with Bearer token if a 'token' environment variable is found
+     * @param headers The HTTP headers to add the Authorization header to
+     * @param apiSpec The API spec to get the environment from (can be null)
+     */
+    private void addAuthorizationHeader(HttpHeaders headers, ApiSpec apiSpec) {
+        try {
+            // Get token from environment variables
+            String token = getTokenFromEnvironment(apiSpec);
+            if (token != null && !token.trim().isEmpty()) {
+                headers.set("Authorization", "Bearer " + token);
+                System.out.println("Added Authorization header with Bearer token");
+            }
+        } catch (Exception e) {
+            System.err.println("Error adding Authorization header: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Retrieves the token value from environment variables
+     * @param apiSpec The API spec to get the environment from (can be null)
+     * @return The token value or null if not found
+     */
+    private String getTokenFromEnvironment(ApiSpec apiSpec) {
+        try {
+            // First try to get token from the current test run's environment
+            if (apiSpec != null) {
+                // Get all test runs for this API spec and find the most recent one with an environment
+                List<TestRun> testRuns = testRunRepository.findByApiSpecIdOrderByStartedAtDesc(apiSpec.getId());
+                for (TestRun testRun : testRuns) {
+                    if (testRun.getEnvironment() != null) {
+                        String token = getTokenFromEnvironmentVariables(testRun.getEnvironment().getId());
+                        if (token != null) {
+                            return token;
+                        }
+                    }
+                }
+            }
+            
+            // If no environment found in test runs, try to get from any environment
+            List<EnvironmentVariable> tokenVariables = environmentVariableRepository.findByKeyIgnoreCase("token");
+            if (!tokenVariables.isEmpty()) {
+                // Return the first token found (you might want to implement environment selection logic)
+                return tokenVariables.get(0).getValue();
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error retrieving token from environment: " + e.getMessage());
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Gets the token value from a specific environment
+     * @param environmentId The environment ID
+     * @return The token value or null if not found
+     */
+    private String getTokenFromEnvironmentVariables(Long environmentId) {
+        try {
+            List<EnvironmentVariable> variables = environmentVariableRepository.findByEnvironmentId(environmentId);
+            for (EnvironmentVariable variable : variables) {
+                if ("token".equalsIgnoreCase(variable.getKey())) {
+                    return variable.getValue();
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error retrieving token from environment " + environmentId + ": " + e.getMessage());
+        }
+        
+        return null;
     }
 }

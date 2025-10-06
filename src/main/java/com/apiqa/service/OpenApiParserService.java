@@ -112,6 +112,309 @@ public class OpenApiParserService {
         }
     }
     
+    private String replacePathVariables(String path) {
+        if (path == null) {
+            return path;
+        }
+        
+        String result = path;
+        
+        // Replace common path variables with meaningful test data (max 5 chars)
+        result = result.replaceAll("\\{id\\}", "12345");
+        result = result.replaceAll("\\{userId\\}", "user1");
+        result = result.replaceAll("\\{user_id\\}", "user1");
+        result = result.replaceAll("\\{productId\\}", "prod1");
+        result = result.replaceAll("\\{product_id\\}", "prod1");
+        result = result.replaceAll("\\{orderId\\}", "ord01");
+        result = result.replaceAll("\\{order_id\\}", "ord01");
+        result = result.replaceAll("\\{categoryId\\}", "cat01");
+        result = result.replaceAll("\\{category_id\\}", "cat01");
+        result = result.replaceAll("\\{postId\\}", "post1");
+        result = result.replaceAll("\\{post_id\\}", "post1");
+        result = result.replaceAll("\\{commentId\\}", "cmt01");
+        result = result.replaceAll("\\{comment_id\\}", "cmt01");
+        result = result.replaceAll("\\{taskId\\}", "task1");
+        result = result.replaceAll("\\{task_id\\}", "task1");
+        result = result.replaceAll("\\{projectId\\}", "proj1");
+        result = result.replaceAll("\\{project_id\\}", "proj1");
+        result = result.replaceAll("\\{accountId\\}", "acc01");
+        result = result.replaceAll("\\{account_id\\}", "acc01");
+        result = result.replaceAll("\\{customerId\\}", "cust1");
+        result = result.replaceAll("\\{customer_id\\}", "cust1");
+        result = result.replaceAll("\\{employeeId\\}", "emp01");
+        result = result.replaceAll("\\{employee_id\\}", "emp01");
+        result = result.replaceAll("\\{departmentId\\}", "dept1");
+        result = result.replaceAll("\\{department_id\\}", "dept1");
+        result = result.replaceAll("\\{companyId\\}", "comp1");
+        result = result.replaceAll("\\{company_id\\}", "comp1");
+        result = result.replaceAll("\\{organizationId\\}", "org01");
+        result = result.replaceAll("\\{organization_id\\}", "org01");
+        result = result.replaceAll("\\{teamId\\}", "team1");
+        result = result.replaceAll("\\{team_id\\}", "team1");
+        result = result.replaceAll("\\{sessionId\\}", "sess1");
+        result = result.replaceAll("\\{session_id\\}", "sess1");
+        result = result.replaceAll("\\{tokenId\\}", "tok01");
+        result = result.replaceAll("\\{token_id\\}", "tok01");
+        result = result.replaceAll("\\{keyId\\}", "key01");
+        result = result.replaceAll("\\{key_id\\}", "key01");
+        result = result.replaceAll("\\{versionId\\}", "v1");
+        result = result.replaceAll("\\{version_id\\}", "v1");
+        result = result.replaceAll("\\{revisionId\\}", "rev01");
+        result = result.replaceAll("\\{revision_id\\}", "rev01");
+        result = result.replaceAll("\\{batchId\\}", "bat01");
+        result = result.replaceAll("\\{batch_id\\}", "bat01");
+        result = result.replaceAll("\\{jobId\\}", "job01");
+        result = result.replaceAll("\\{job_id\\}", "job01");
+        result = result.replaceAll("\\{workflowId\\}", "wf001");
+        result = result.replaceAll("\\{workflow_id\\}", "wf001");
+        result = result.replaceAll("\\{pipelineId\\}", "pipe1");
+        result = result.replaceAll("\\{pipeline_id\\}", "pipe1");
+        result = result.replaceAll("\\{configId\\}", "cfg01");
+        result = result.replaceAll("\\{config_id\\}", "cfg01");
+        result = result.replaceAll("\\{settingId\\}", "set01");
+        result = result.replaceAll("\\{setting_id\\}", "set01");
+        result = result.replaceAll("\\{paramId\\}", "par01");
+        result = result.replaceAll("\\{param_id\\}", "par01");
+        result = result.replaceAll("\\{optionId\\}", "opt01");
+        result = result.replaceAll("\\{option_id\\}", "opt01");
+        result = result.replaceAll("\\{choiceId\\}", "ch001");
+        result = result.replaceAll("\\{choice_id\\}", "ch001");
+        result = result.replaceAll("\\{itemId\\}", "item1");
+        result = result.replaceAll("\\{item_id\\}", "item1");
+        result = result.replaceAll("\\{recordId\\}", "rec01");
+        result = result.replaceAll("\\{record_id\\}", "rec01");
+        result = result.replaceAll("\\{entryId\\}", "ent01");
+        result = result.replaceAll("\\{entry_id\\}", "ent01");
+        result = result.replaceAll("\\{documentId\\}", "doc01");
+        result = result.replaceAll("\\{document_id\\}", "doc01");
+        result = result.replaceAll("\\{fileId\\}", "file1");
+        result = result.replaceAll("\\{file_id\\}", "file1");
+        result = result.replaceAll("\\{imageId\\}", "img01");
+        result = result.replaceAll("\\{image_id\\}", "img01");
+        result = result.replaceAll("\\{videoId\\}", "vid01");
+        result = result.replaceAll("\\{video_id\\}", "vid01");
+        result = result.replaceAll("\\{audioId\\}", "aud01");
+        result = result.replaceAll("\\{audio_id\\}", "aud01");
+        result = result.replaceAll("\\{mediaId\\}", "med01");
+        result = result.replaceAll("\\{media_id\\}", "med01");
+        result = result.replaceAll("\\{contentId\\}", "cnt01");
+        result = result.replaceAll("\\{content_id\\}", "cnt01");
+        result = result.replaceAll("\\{resourceId\\}", "res01");
+        result = result.replaceAll("\\{resource_id\\}", "res01");
+        result = result.replaceAll("\\{assetId\\}", "ast01");
+        result = result.replaceAll("\\{asset_id\\}", "ast01");
+        result = result.replaceAll("\\{objectId\\}", "obj01");
+        result = result.replaceAll("\\{object_id\\}", "obj01");
+        result = result.replaceAll("\\{entityId\\}", "ent01");
+        result = result.replaceAll("\\{entity_id\\}", "ent01");
+        result = result.replaceAll("\\{modelId\\}", "mod01");
+        result = result.replaceAll("\\{model_id\\}", "mod01");
+        result = result.replaceAll("\\{schemaId\\}", "sch01");
+        result = result.replaceAll("\\{schema_id\\}", "sch01");
+        result = result.replaceAll("\\{typeId\\}", "type1");
+        result = result.replaceAll("\\{type_id\\}", "type1");
+        result = result.replaceAll("\\{statusId\\}", "st001");
+        result = result.replaceAll("\\{status_id\\}", "st001");
+        result = result.replaceAll("\\{stateId\\}", "st001");
+        result = result.replaceAll("\\{state_id\\}", "st001");
+        result = result.replaceAll("\\{levelId\\}", "lvl01");
+        result = result.replaceAll("\\{level_id\\}", "lvl01");
+        result = result.replaceAll("\\{gradeId\\}", "gr001");
+        result = result.replaceAll("\\{grade_id\\}", "gr001");
+        result = result.replaceAll("\\{rankId\\}", "rnk01");
+        result = result.replaceAll("\\{rank_id\\}", "rnk01");
+        result = result.replaceAll("\\{priorityId\\}", "pr001");
+        result = result.replaceAll("\\{priority_id\\}", "pr001");
+        result = result.replaceAll("\\{severityId\\}", "sv001");
+        result = result.replaceAll("\\{severity_id\\}", "sv001");
+        result = result.replaceAll("\\{categoryId\\}", "cat01");
+        result = result.replaceAll("\\{category_id\\}", "cat01");
+        result = result.replaceAll("\\{tagId\\}", "tag01");
+        result = result.replaceAll("\\{tag_id\\}", "tag01");
+        result = result.replaceAll("\\{labelId\\}", "lbl01");
+        result = result.replaceAll("\\{label_id\\}", "lbl01");
+        result = result.replaceAll("\\{nameId\\}", "nm001");
+        result = result.replaceAll("\\{name_id\\}", "nm001");
+        result = result.replaceAll("\\{codeId\\}", "cd001");
+        result = result.replaceAll("\\{code_id\\}", "cd001");
+        result = result.replaceAll("\\{refId\\}", "ref01");
+        result = result.replaceAll("\\{ref_id\\}", "ref01");
+        result = result.replaceAll("\\{uuid\\}", "uuid1");
+        result = result.replaceAll("\\{guid\\}", "guid1");
+        result = result.replaceAll("\\{hash\\}", "hash1");
+        result = result.replaceAll("\\{slug\\}", "slug1");
+        result = result.replaceAll("\\{alias\\}", "alias");
+        result = result.replaceAll("\\{username\\}", "user1");
+        result = result.replaceAll("\\{email\\}", "test@");
+        result = result.replaceAll("\\{phone\\}", "12345");
+        result = result.replaceAll("\\{zip\\}", "12345");
+        result = result.replaceAll("\\{code\\}", "code1");
+        result = result.replaceAll("\\{key\\}", "key01");
+        result = result.replaceAll("\\{value\\}", "val01");
+        result = result.replaceAll("\\{text\\}", "text1");
+        result = result.replaceAll("\\{title\\}", "title");
+        result = result.replaceAll("\\{name\\}", "name1");
+        result = result.replaceAll("\\{slug\\}", "slug1");
+        result = result.replaceAll("\\{path\\}", "path1");
+        result = result.replaceAll("\\{url\\}", "url01");
+        result = result.replaceAll("\\{link\\}", "link1");
+        result = result.replaceAll("\\{token\\}", "tok01");
+        result = result.replaceAll("\\{secret\\}", "sec01");
+        result = result.replaceAll("\\{password\\}", "pwd01");
+        result = result.replaceAll("\\{pin\\}", "12345");
+        result = result.replaceAll("\\{otp\\}", "12345");
+        result = result.replaceAll("\\{code\\}", "code1");
+        result = result.replaceAll("\\{number\\}", "12345");
+        result = result.replaceAll("\\{amount\\}", "100");
+        result = result.replaceAll("\\{price\\}", "99.99");
+        result = result.replaceAll("\\{cost\\}", "50.00");
+        result = result.replaceAll("\\{rate\\}", "5.00");
+        result = result.replaceAll("\\{fee\\}", "10.00");
+        result = result.replaceAll("\\{tax\\}", "8.25");
+        result = result.replaceAll("\\{discount\\}", "5.00");
+        result = result.replaceAll("\\{credit\\}", "100");
+        result = result.replaceAll("\\{debit\\}", "50");
+        result = result.replaceAll("\\{balance\\}", "500");
+        result = result.replaceAll("\\{limit\\}", "1000");
+        result = result.replaceAll("\\{quota\\}", "100");
+        result = result.replaceAll("\\{count\\}", "10");
+        result = result.replaceAll("\\{size\\}", "1024");
+        result = result.replaceAll("\\{length\\}", "100");
+        result = result.replaceAll("\\{width\\}", "200");
+        result = result.replaceAll("\\{height\\}", "300");
+        result = result.replaceAll("\\{weight\\}", "1.5");
+        result = result.replaceAll("\\{volume\\}", "100");
+        result = result.replaceAll("\\{capacity\\}", "500");
+        result = result.replaceAll("\\{duration\\}", "60");
+        result = result.replaceAll("\\{time\\}", "120");
+        result = result.replaceAll("\\{date\\}", "2024");
+        result = result.replaceAll("\\{year\\}", "2024");
+        result = result.replaceAll("\\{month\\}", "01");
+        result = result.replaceAll("\\{day\\}", "15");
+        result = result.replaceAll("\\{hour\\}", "12");
+        result = result.replaceAll("\\{minute\\}", "30");
+        result = result.replaceAll("\\{second\\}", "45");
+        result = result.replaceAll("\\{timestamp\\}", "12345");
+        result = result.replaceAll("\\{epoch\\}", "12345");
+        result = result.replaceAll("\\{offset\\}", "0");
+        result = result.replaceAll("\\{timezone\\}", "UTC");
+        result = result.replaceAll("\\{locale\\}", "en");
+        result = result.replaceAll("\\{language\\}", "en");
+        result = result.replaceAll("\\{country\\}", "US");
+        result = result.replaceAll("\\{region\\}", "CA");
+        result = result.replaceAll("\\{city\\}", "NYC");
+        result = result.replaceAll("\\{address\\}", "addr1");
+        result = result.replaceAll("\\{street\\}", "st001");
+        result = result.replaceAll("\\{building\\}", "bld01");
+        result = result.replaceAll("\\{floor\\}", "1");
+        result = result.replaceAll("\\{room\\}", "101");
+        result = result.replaceAll("\\{apartment\\}", "apt01");
+        result = result.replaceAll("\\{suite\\}", "ste01");
+        result = result.replaceAll("\\{unit\\}", "unit1");
+        result = result.replaceAll("\\{zone\\}", "zone1");
+        result = result.replaceAll("\\{area\\}", "area1");
+        result = result.replaceAll("\\{district\\}", "dist1");
+        result = result.replaceAll("\\{neighborhood\\}", "ngh01");
+        result = result.replaceAll("\\{block\\}", "blk01");
+        result = result.replaceAll("\\{lot\\}", "lot01");
+        result = result.replaceAll("\\{parcel\\}", "prc01");
+        result = result.replaceAll("\\{plot\\}", "plt01");
+        result = result.replaceAll("\\{section\\}", "sec01");
+        result = result.replaceAll("\\{chapter\\}", "ch001");
+        result = result.replaceAll("\\{page\\}", "1");
+        result = result.replaceAll("\\{line\\}", "1");
+        result = result.replaceAll("\\{column\\}", "1");
+        result = result.replaceAll("\\{row\\}", "1");
+        result = result.replaceAll("\\{index\\}", "0");
+        result = result.replaceAll("\\{position\\}", "1");
+        result = result.replaceAll("\\{order\\}", "1");
+        result = result.replaceAll("\\{sequence\\}", "1");
+        result = result.replaceAll("\\{step\\}", "1");
+        result = result.replaceAll("\\{stage\\}", "1");
+        result = result.replaceAll("\\{phase\\}", "1");
+        result = result.replaceAll("\\{level\\}", "1");
+        result = result.replaceAll("\\{tier\\}", "1");
+        result = result.replaceAll("\\{grade\\}", "A");
+        result = result.replaceAll("\\{score\\}", "100");
+        result = result.replaceAll("\\{rating\\}", "5");
+        result = result.replaceAll("\\{rank\\}", "1");
+        result = result.replaceAll("\\{priority\\}", "1");
+        result = result.replaceAll("\\{weight\\}", "1");
+        result = result.replaceAll("\\{value\\}", "1");
+        result = result.replaceAll("\\{amount\\}", "1");
+        result = result.replaceAll("\\{quantity\\}", "1");
+        result = result.replaceAll("\\{total\\}", "100");
+        result = result.replaceAll("\\{sum\\}", "100");
+        result = result.replaceAll("\\{average\\}", "50");
+        result = result.replaceAll("\\{mean\\}", "50");
+        result = result.replaceAll("\\{median\\}", "50");
+        result = result.replaceAll("\\{mode\\}", "1");
+        result = result.replaceAll("\\{min\\}", "1");
+        result = result.replaceAll("\\{max\\}", "100");
+        result = result.replaceAll("\\{range\\}", "99");
+        result = result.replaceAll("\\{variance\\}", "25");
+        result = result.replaceAll("\\{deviation\\}", "5");
+        result = result.replaceAll("\\{percentile\\}", "50");
+        result = result.replaceAll("\\{quartile\\}", "25");
+        result = result.replaceAll("\\{decile\\}", "10");
+        result = result.replaceAll("\\{centile\\}", "1");
+        result = result.replaceAll("\\{fraction\\}", "1/2");
+        result = result.replaceAll("\\{ratio\\}", "1:1");
+        result = result.replaceAll("\\{proportion\\}", "0.5");
+        result = result.replaceAll("\\{percentage\\}", "50");
+        result = result.replaceAll("\\{probability\\}", "0.5");
+        result = result.replaceAll("\\{likelihood\\}", "0.5");
+        result = result.replaceAll("\\{chance\\}", "0.5");
+        result = result.replaceAll("\\{odds\\}", "1:1");
+        result = result.replaceAll("\\{frequency\\}", "10");
+        result = result.replaceAll("\\{rate\\}", "5");
+        result = result.replaceAll("\\{speed\\}", "100");
+        result = result.replaceAll("\\{velocity\\}", "50");
+        result = result.replaceAll("\\{acceleration\\}", "10");
+        result = result.replaceAll("\\{force\\}", "100");
+        result = result.replaceAll("\\{pressure\\}", "1013");
+        result = result.replaceAll("\\{temperature\\}", "20");
+        result = result.replaceAll("\\{humidity\\}", "50");
+        result = result.replaceAll("\\{density\\}", "1.0");
+        result = result.replaceAll("\\{mass\\}", "1.0");
+        result = result.replaceAll("\\{energy\\}", "100");
+        result = result.replaceAll("\\{power\\}", "50");
+        result = result.replaceAll("\\{current\\}", "1.0");
+        result = result.replaceAll("\\{voltage\\}", "220");
+        result = result.replaceAll("\\{resistance\\}", "100");
+        result = result.replaceAll("\\{capacitance\\}", "1.0");
+        result = result.replaceAll("\\{inductance\\}", "1.0");
+        result = result.replaceAll("\\{impedance\\}", "100");
+        result = result.replaceAll("\\{admittance\\}", "0.01");
+        result = result.replaceAll("\\{reactance\\}", "50");
+        result = result.replaceAll("\\{susceptance\\}", "0.02");
+        result = result.replaceAll("\\{conductance\\}", "0.01");
+        result = result.replaceAll("\\{permittivity\\}", "8.85");
+        result = result.replaceAll("\\{permeability\\}", "1.26");
+        result = result.replaceAll("\\{flux\\}", "1.0");
+        result = result.replaceAll("\\{field\\}", "1.0");
+        result = result.replaceAll("\\{potential\\}", "100");
+        result = result.replaceAll("\\{charge\\}", "1.0");
+        result = result.replaceAll("\\{current\\}", "1.0");
+        result = result.replaceAll("\\{magnetic\\}", "1.0");
+        result = result.replaceAll("\\{electric\\}", "1.0");
+        result = result.replaceAll("\\{electromagnetic\\}", "1.0");
+        result = result.replaceAll("\\{electrostatic\\}", "1.0");
+        result = result.replaceAll("\\{magnetostatic\\}", "1.0");
+        result = result.replaceAll("\\{electrodynamic\\}", "1.0");
+        result = result.replaceAll("\\{magnetodynamic\\}", "1.0");
+        result = result.replaceAll("\\{electromagnetic\\}", "1.0");
+        result = result.replaceAll("\\{electrostatic\\}", "1.0");
+        result = result.replaceAll("\\{magnetostatic\\}", "1.0");
+        result = result.replaceAll("\\{electrodynamic\\}", "1.0");
+        result = result.replaceAll("\\{magnetodynamic\\}", "1.0");
+        
+        // Handle any remaining generic {variable} patterns
+        result = result.replaceAll("\\{[a-zA-Z_][a-zA-Z0-9_]*\\}", "test1");
+        
+        return result;
+    }
+    
     private Swagger parseSwagger2Spec(String yamlContent) {
         try {
             SwaggerParser parser = new SwaggerParser();
@@ -1143,30 +1446,30 @@ public class OpenApiParserService {
     }
     
     private String substitutePathParameters(String path, Operation operation) {
-        if (operation.getParameters() == null || operation.getParameters().isEmpty()) {
-            return path;
-        }
+        // First use our comprehensive path variable replacement
+        String substitutedPath = replacePathVariables(path);
         
-        String substitutedPath = path;
-        
-        for (io.swagger.v3.oas.models.parameters.Parameter param : operation.getParameters()) {
-            if ("path".equals(param.getIn()) && param.getName() != null) {
-                String paramName = param.getName();
-                Object example = param.getExample();
-                Object defaultValue = param.getSchema() != null ? param.getSchema().getExample() : null;
-                
-                // Use example value if available, otherwise use default test value
-                String testValue;
-                if (example != null) {
-                    testValue = example.toString();
-                } else if (defaultValue != null) {
-                    testValue = defaultValue.toString();
-                } else {
-                    // Generate test value based on parameter name
-                    testValue = generateTestValueForParameter(paramName, param.getSchema());
+        // Then handle any remaining parameters from the operation definition
+        if (operation.getParameters() != null && !operation.getParameters().isEmpty()) {
+            for (io.swagger.v3.oas.models.parameters.Parameter param : operation.getParameters()) {
+                if ("path".equals(param.getIn()) && param.getName() != null) {
+                    String paramName = param.getName();
+                    Object example = param.getExample();
+                    Object defaultValue = param.getSchema() != null ? param.getSchema().getExample() : null;
+                    
+                    // Use example value if available, otherwise use default test value
+                    String testValue;
+                    if (example != null) {
+                        testValue = example.toString();
+                    } else if (defaultValue != null) {
+                        testValue = defaultValue.toString();
+                    } else {
+                        // Generate test value based on parameter name
+                        testValue = generateTestValueForParameter(paramName, param.getSchema());
+                    }
+                    
+                    substitutedPath = substitutedPath.replace("{" + paramName + "}", testValue);
                 }
-                
-                substitutedPath = substitutedPath.replace("{" + paramName + "}", testValue);
             }
         }
         
@@ -1301,12 +1604,13 @@ public class OpenApiParserService {
     }
     
     private void generateSmokeTestSwagger2(StringBuilder content, List<TestScenario> scenarios, String path, io.swagger.models.Operation operation, String baseUrl) {
-        String scenarioName = "GET " + path + " - Valid Request";
+        String cleanPath = replacePathVariables(path);
+        String scenarioName = "GET " + cleanPath + " - Valid Request";
         
         content.append("  Scenario: ").append(scenarioName).append("\n");
         content.append("    Given the API is available\n");
         content.append("    And I have valid authentication credentials\n");
-        content.append("    When I send a GET request to \"").append(path).append("\"\n");
+        content.append("    When I send a GET request to \"").append(cleanPath).append("\"\n");
         content.append("    And I include valid headers\n");
         content.append("    Then the response status should be 200\n");
         content.append("    And the response should be valid JSON\n");
@@ -1315,9 +1619,9 @@ public class OpenApiParserService {
         // Create TestScenario object
         TestScenario scenario = new TestScenario();
         scenario.setScenarioName(scenarioName);
-        scenario.setDescription("Smoke test for GET " + path);
+        scenario.setDescription("Smoke test for GET " + cleanPath);
         scenario.setHttpMethod("GET");
-        scenario.setEndpoint(path);
+        scenario.setEndpoint(cleanPath);
         scenario.setCreatedAt(java.time.LocalDateTime.now());
         scenarios.add(scenario);
     }
@@ -1384,12 +1688,13 @@ public class OpenApiParserService {
     }
     
     private void generateSystemTestSwagger2(StringBuilder content, List<TestScenario> scenarios, String path, io.swagger.models.Operation operation, String method, String baseUrl) {
-        String scenarioName = method + " " + path + " - Valid Request";
+        String cleanPath = replacePathVariables(path);
+        String scenarioName = method + " " + cleanPath + " - Valid Request";
         
         content.append("  Scenario: ").append(scenarioName).append("\n");
         content.append("    Given the API is available\n");
         content.append("    And I have valid authentication credentials\n");
-        content.append("    When I send a ").append(method).append(" request to \"").append(path).append("\"\n");
+        content.append("    When I send a ").append(method).append(" request to \"").append(cleanPath).append("\"\n");
         
         if (operation.getParameters() != null && operation.getParameters().stream().anyMatch(p -> p instanceof BodyParameter)) {
             content.append("    And I include a valid request body\n");
@@ -1405,9 +1710,9 @@ public class OpenApiParserService {
         // Create TestScenario object
         TestScenario scenario = new TestScenario();
         scenario.setScenarioName(scenarioName);
-        scenario.setDescription("System test for " + method + " " + path);
+        scenario.setDescription("System test for " + method + " " + cleanPath);
         scenario.setHttpMethod(method);
-        scenario.setEndpoint(path);
+        scenario.setEndpoint(cleanPath);
         scenario.setCreatedAt(java.time.LocalDateTime.now());
         scenarios.add(scenario);
     }
